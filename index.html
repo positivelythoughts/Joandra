@@ -48,7 +48,6 @@
   --navy:#3C5378;
 }
 [data-theme="dark"] body{background:var(--cream);}
-[data-theme="dark"] .ledger-card.income{background:#22304A;}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -120,12 +119,12 @@ input,select,textarea{font-family:inherit; font-size:16px;}
   border-radius:var(--radius); padding:16px 16px 14px; position:relative; overflow:hidden;
   box-shadow:var(--shadow);
 }
-.ledger-card.income{background:var(--navy); color:#fff;}
-.ledger-card.expense{background:var(--paper); border:1px solid var(--line); color:var(--ink);}
+.ledger-card.income{background:var(--green); color:#fff;}
+.ledger-card.expense{background:var(--terracotta); color:#fff;}
 .ledger-label{font-size:11px; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; opacity:.7;}
 .ledger-amount{font-family:var(--font-mono); font-size:20px; font-weight:700; margin-top:8px; letter-spacing:-0.3px;}
-.ledger-card.income .ledger-amount{color:var(--gold-soft);}
-.ledger-card.expense .ledger-amount{color:var(--terracotta);}
+.ledger-card.income .ledger-amount{color:#fff;}
+.ledger-card.expense .ledger-amount{color:#fff;}
 .cycle-label{font-size:11.5px; color:var(--slate); margin-top:10px; font-weight:600;}
 .greeting-block{margin:8px 0 16px;}
 .greeting-text{font-family:var(--font-display); font-size:23px; font-weight:600; color:var(--navy);}
@@ -739,7 +738,7 @@ function switchTab(tab){
   renderNav();
   render(tab);
 }
-function renderAll(){ tabs.forEach(render); renderStreakPill(); }
+function renderAll(){ render(currentTab); renderStreakPill(); }
 function render(tab){
   if(!loaded) return;
   if(tab==='home') renderHome();
@@ -758,7 +757,7 @@ function renderHome(){
   const expense = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
 
   const today = todayStr();
-  const todayTodos = state.todos.filter(t=>t.deadline===today);
+  const todayTodos = state.todos.filter(t=> (!t.done && t.deadline<=today) || (t.done && t.completedDate===today) );
   const upcomingEvents = state.events.filter(e=>e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4);
 
   const recent = [...state.transactions].sort((a,b)=> b.date.localeCompare(a.date) || b.createdAt-a.createdAt).slice(0,8);
@@ -838,11 +837,12 @@ function txRowHTML(t){
   </div>`;
 }
 function todoRowHTML(t){
+  const overdue = !t.done && t.deadline < todayStr();
   return `<div class="todo-row" data-todo="${t.id}">
     <button class="check ${t.done?'done':''}">${t.done?'✓':''}</button>
     <div style="flex:1">
       <div class="todo-title ${t.done?'done':''}">${escapeHTML(t.name)}</div>
-      <div class="todo-sub">Due ${fmtDate(t.deadline)}</div>
+      <div class="todo-sub" style="${overdue?'color:var(--terracotta);font-weight:700;':''}">${overdue?'Overdue · ':'Due '}${fmtDate(t.deadline)}</div>
     </div>
   </div>`;
 }
@@ -1158,6 +1158,10 @@ function renderCharts(){
   const catList = Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
   const grand = catList.reduce((s,c)=>s+totals[c],0);
 
+  const cycleIncome = state.transactions.filter(t=>t.type==='income' && inCycle(t.date,cycle)).reduce((s,t)=>s+t.amount,0);
+  const cycleExpense = state.transactions.filter(t=>t.type==='expense' && inCycle(t.date,cycle)).reduce((s,t)=>s+t.amount,0);
+  const netBalance = cycleIncome - cycleExpense;
+
   el.innerHTML = `
     <div class="section-title">${t('reports')}</div>
     <div class="tabbar">
@@ -1169,6 +1173,13 @@ function renderCharts(){
       <div class="m" style="font-size:14px">${cycleLabel(cycle)}</div>
       <button class="icon-btn" id="cycleNext">›</button>
     </div>
+
+    <div class="budget-card" style="text-align:center; padding:16px;">
+      <div class="budget-title">Net balance this cycle</div>
+      <div style="font-family:var(--font-mono); font-size:24px; font-weight:700; margin-top:6px; color:${netBalance>=0?'var(--green)':'var(--terracotta)'}">${netBalance>=0?'+':'-'}${fmtIDR(Math.abs(netBalance))}</div>
+      <div style="font-size:11.5px; color:var(--slate); margin-top:6px; font-weight:600;">${fmtIDR(cycleIncome)} ${t('income').toLowerCase()} &nbsp;−&nbsp; ${fmtIDR(cycleExpense)} ${t('expense').toLowerCase()}</div>
+    </div>
+
     <div class="chart-wrap"><canvas id="pieCanvas"></canvas>
       <div class="chart-center"><div class="amt">${fmtIDR(grand)}</div><div class="lbl">${chartMode==='expense'?t('expense'):t('income')}</div></div>
     </div>
@@ -1177,15 +1188,19 @@ function renderCharts(){
   `;
 
   const ctx = document.getElementById('pieCanvas');
-  if(pieChartInstance) pieChartInstance.destroy();
-  if(catList.length){
-    pieChartInstance = new Chart(ctx, {
-      type:'doughnut',
-      data:{ labels:catList, datasets:[{ data: catList.map(c=>totals[c]), backgroundColor: catList.map((_,i)=>CATEGORY_COLORS[i%CATEGORY_COLORS.length]), borderWidth:2, borderColor:'#F6F3EC' }]},
-      options:{ cutout:'68%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=> c.label+': '+fmtIDR(c.parsed)}}} }
-    });
-  } else {
-    ctx.getContext('2d').clearRect(0,0,300,300);
+  if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance=null; }
+  if(!el.classList.contains('hidden')){
+    try{
+      if(catList.length){
+        pieChartInstance = new Chart(ctx, {
+          type:'doughnut',
+          data:{ labels:catList, datasets:[{ data: catList.map(c=>totals[c]), backgroundColor: catList.map((_,i)=>CATEGORY_COLORS[i%CATEGORY_COLORS.length]), borderWidth:2, borderColor:'#F6F3EC' }]},
+          options:{ cutout:'68%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=> c.label+': '+fmtIDR(c.parsed)}}} }
+        });
+      } else {
+        ctx.getContext('2d').clearRect(0,0,300,300);
+      }
+    }catch(e){ console.error('chart render failed', e); }
   }
 
   const bEl = document.getElementById('catBreakdown');
@@ -1284,8 +1299,12 @@ function renderCalendarGrid(){
   grid.innerHTML = html;
 }
 function toggleTodo(id){
-  const t = state.todos.find(x=>x.id===id);
-  if(t){ t.done = !t.done; saveState(); renderAll(); }
+  const todo = state.todos.find(x=>x.id===id);
+  if(todo){
+    todo.done = !todo.done;
+    todo.completedDate = todo.done ? todayStr() : null;
+    saveState(); renderAll();
+  }
 }
 function openTodoModal(){
   const html = `
