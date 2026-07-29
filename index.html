@@ -6,7 +6,6 @@
 <title>JOANDRA — Financial Management</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -254,6 +253,7 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 
 /* Chart wheel */
 .chart-wrap{position:relative; width:200px; height:200px; margin:6px auto 4px;}
+.chart-wrap svg{display:block; margin:0 auto;}
 .chart-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
 .chart-center .amt{font-family:var(--font-mono); font-weight:700; font-size:14px; color:var(--navy);}
 .chart-center .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--slate); margin-top:2px;}
@@ -285,6 +285,24 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .cal-cell.blank{visibility:hidden;}
 .cal-dot{width:4px; height:4px; border-radius:99px; background:var(--gold); position:absolute; bottom:4px;}
 .cal-cell.today .cal-dot{background:var(--gold-soft);}
+
+.date-strip-wrap{margin:2px -2px 0;}
+.date-strip{
+  display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x proximity; padding:2px 2px 8px;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+}
+.date-strip::-webkit-scrollbar{display:none;}
+.date-chip{
+  scroll-snap-align:center; flex:0 0 auto; width:44px; height:56px; border-radius:14px;
+  border:1px solid var(--line); background:var(--paper); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2px; position:relative; color:var(--ink-soft);
+}
+.date-chip .dow{font-size:9px; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; opacity:.7;}
+.date-chip .dnum{font-family:var(--font-mono); font-size:15px; font-weight:700;}
+.date-chip.today{border-color:var(--gold); color:var(--gold);}
+.date-chip.sel{background:var(--navy); border-color:var(--navy); color:#fff;}
+.date-chip .dot{position:absolute; bottom:5px; width:4px; height:4px; border-radius:99px; background:var(--gold);}
+.date-chip.sel .dot{background:var(--gold-soft);}
 
 /* Budget */
 .budget-card{padding:18px; border-radius:var(--radius); background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow); margin-bottom:14px;}
@@ -1143,7 +1161,25 @@ function closeDrawer(){
 /* ================= CHARTS TAB ================= */
 let chartCycleOffset = 0;
 let chartMode = 'expense';
-let pieChartInstance = null;
+function buildDonutSVG(catList, totals, grand){
+  const size = 200, stroke = 28, r = (size-stroke)/2, c = 2*Math.PI*r;
+  const cx = size/2, cy = size/2;
+  if(!catList.length){
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--line)" stroke-width="${stroke}"></circle>
+    </svg>`;
+  }
+  let offset = 0;
+  const segs = catList.map((cat,i)=>{
+    const val = totals[cat];
+    const frac = grand? val/grand : 0;
+    const dash = Math.max(frac*c - (catList.length>1?1.5:0), 0); // small gap between segments
+    const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}" stroke-width="${stroke}" stroke-linecap="butt" stroke-dasharray="${dash} ${Math.max(c-dash,0)}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHTML(cat)} — ${Math.round(frac*100)}%</title></circle>`;
+    offset += frac*c;
+    return seg;
+  }).join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${segs}</svg>`;
+}
 function renderCharts(){
   const el = document.getElementById('view-charts');
   // Start from this cycle's midpoint date, shift by whole months, then resolve the cycle it falls in.
@@ -1180,28 +1216,14 @@ function renderCharts(){
       <div style="font-size:11.5px; color:var(--slate); margin-top:6px; font-weight:600;">${fmtIDR(cycleIncome)} ${t('income').toLowerCase()} &nbsp;−&nbsp; ${fmtIDR(cycleExpense)} ${t('expense').toLowerCase()}</div>
     </div>
 
-    <div class="chart-wrap"><canvas id="pieCanvas"></canvas>
+    <div class="chart-wrap" id="chartWrap">
       <div class="chart-center"><div class="amt">${fmtIDR(grand)}</div><div class="lbl">${chartMode==='expense'?t('expense'):t('income')}</div></div>
     </div>
     <div class="card" id="catBreakdown" style="margin-top:16px;"></div>
     <button class="btn ghost" id="exportPdfBtn" style="margin-top:18px;">${t('export_pdf')}</button>
   `;
 
-  const ctx = document.getElementById('pieCanvas');
-  if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance=null; }
-  if(!el.classList.contains('hidden')){
-    try{
-      if(catList.length){
-        pieChartInstance = new Chart(ctx, {
-          type:'doughnut',
-          data:{ labels:catList, datasets:[{ data: catList.map(c=>totals[c]), backgroundColor: catList.map((_,i)=>CATEGORY_COLORS[i%CATEGORY_COLORS.length]), borderWidth:2, borderColor:'#F6F3EC' }]},
-          options:{ cutout:'68%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=> c.label+': '+fmtIDR(c.parsed)}}} }
-        });
-      } else {
-        ctx.getContext('2d').clearRect(0,0,300,300);
-      }
-    }catch(e){ console.error('chart render failed', e); }
-  }
+  document.getElementById('chartWrap').insertAdjacentHTML('afterbegin', buildDonutSVG(catList, totals, grand));
 
   const bEl = document.getElementById('catBreakdown');
   bEl.innerHTML = catList.length? catList.map((c,i)=>{
@@ -1238,6 +1260,19 @@ function openCategoryListModal(cat, type, cycle){
 /* ================= TASKS TAB (todo + calendar) ================= */
 let taskTab = 'todo';
 let calMonth = new Date();
+let selectedTodoDate = todayStr();
+function dateStripRange(){
+  const arr = [];
+  for(let i=-30;i<=45;i++) arr.push(new Date(Date.now()+i*86400000).toISOString().slice(0,10));
+  return arr;
+}
+function todosForDate(dateStr){
+  const today = todayStr();
+  if(dateStr < today){
+    return state.todos.filter(x=> x.done && x.completedDate===dateStr);
+  }
+  return state.todos.filter(x=> x.deadline===dateStr);
+}
 function renderTasks(){
   const el = document.getElementById('view-tasks');
   el.innerHTML = `
@@ -1253,13 +1288,37 @@ function renderTasks(){
 
   const content = document.getElementById('taskContent');
   if(taskTab==='todo'){
-    const sorted = [...state.todos].sort((a,b)=> (a.done-b.done) || a.deadline.localeCompare(b.deadline));
+    const today = todayStr();
+    const dates = dateStripRange();
+    const dowFmt = new Intl.DateTimeFormat(state.settings.language==='id'?'id-ID':'en-GB', {weekday:'short'});
+    const list = todosForDate(selectedTodoDate);
+    const isPast = selectedTodoDate < today;
+    const isFuture = selectedTodoDate > today;
+    const dateHeading = selectedTodoDate===today ? 'Today' : new Date(selectedTodoDate+'T00:00:00').toLocaleDateString(state.settings.language==='id'?'id-ID':'en-GB',{weekday:'long', day:'numeric', month:'long'});
+    const contextLine = isPast ? 'Completed on this day' : (isFuture ? 'Due on this day' : 'Due today');
+
     content.innerHTML = `
       <button class="btn" id="addTodoBtn" style="margin-bottom:14px;">${t('add_todo')}</button>
-      <div class="card">${sorted.length? sorted.map(todoRowHTML).join('') : `<div class="empty-state">${t('no_tasks')}</div>`}</div>
+      <div class="date-strip-wrap">
+        <div class="date-strip" id="dateStrip">
+          ${dates.map(d=>{
+            const dn = new Date(d+'T00:00:00');
+            const hasItems = todosForDate(d).length>0;
+            return `<button type="button" class="date-chip ${d===selectedTodoDate?'sel':''} ${d===today?'today':''}" data-date="${d}">
+              <span class="dow">${dowFmt.format(dn)}</span><span class="dnum">${dn.getDate()}</span>${hasItems?'<span class="dot"></span>':''}
+            </button>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="section-title" style="margin-top:14px;">${dateHeading} <span class="link" style="text-transform:none; font-weight:600; color:var(--slate);">${contextLine}</span></div>
+      <div class="card">${list.length? list.map(todoRowHTML).join('') : `<div class="empty-state">${t('no_tasks')}</div>`}</div>
     `;
     document.getElementById('addTodoBtn').addEventListener('click', ()=>openTodoModal());
     content.querySelectorAll('[data-todo]').forEach(r=>r.querySelector('.check').addEventListener('click', ()=>toggleTodo(r.dataset.todo)));
+    content.querySelectorAll('.date-chip').forEach(ch=>ch.addEventListener('click', ()=>{ selectedTodoDate = ch.dataset.date; renderTasks(); }));
+    const strip = document.getElementById('dateStrip');
+    const selChip = strip.querySelector('.date-chip.sel');
+    if(selChip) selChip.scrollIntoView({inline:'center', block:'nearest'});
   } else {
     content.innerHTML = `
       <button class="btn" id="addEventBtn" style="margin-bottom:14px;">${t('add_event')}</button>
