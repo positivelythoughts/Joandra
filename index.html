@@ -274,6 +274,11 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .todo-title{font-weight:700; font-size:13.5px;}
 .todo-title.done{text-decoration:line-through; color:var(--slate);}
 .todo-sub{font-size:11.5px; color:var(--slate); margin-top:2px;}
+.row-del{
+  width:26px; height:26px; border-radius:999px; border:none; background:transparent; color:var(--slate);
+  font-size:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+}
+.row-del:active{background:var(--terracotta-soft); color:var(--terracotta);}
 
 .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
 .cal-head .m{font-family:var(--font-display); font-weight:600; font-size:16.5px; color:var(--navy);}
@@ -310,6 +315,10 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .budget-bar{height:10px; border-radius:99px; background:var(--line); margin:12px 0 8px; overflow:hidden;}
 .budget-bar-fill{height:100%; background:var(--gold); border-radius:99px;}
 .budget-bar-fill.over{background:var(--terracotta);}
+.overbudget-alert{border:1px solid var(--terracotta-soft); background:var(--terracotta-soft); border-radius:var(--radius); padding:16px; margin-bottom:14px;}
+.overbudget-alert .obtitle{color:var(--terracotta); font-weight:800; font-size:12.5px; text-transform:uppercase; letter-spacing:0.5px;}
+.overbudget-alert .obamt{font-family:var(--font-mono); font-size:20px; font-weight:700; color:var(--terracotta); margin-top:4px;}
+.overbudget-alert .budget-bar{background:rgba(191,78,48,.18);}
 .budget-nums{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); font-weight:600;}
 .budget-left{font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--navy); margin-top:4px;}
 
@@ -441,8 +450,8 @@ input,select,textarea{font-family:inherit; font-size:16px;}
    4. (Optional) Authentication → Providers → Email → turn OFF "Confirm email"
       so you can log in immediately without checking your inbox.
 */
-const SUPABASE_URL = 'https://knamdxaxojuvnnaxkdgk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuYW1keGF4b2p1dm5uYXhrZGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDAzNDUsImV4cCI6MjEwMDg3NjM0NX0.UCl_uAgM7uNZYrVOGkIT0Sx9z5hCOl-5jz7HrSfJFic';
+const SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuYW1keGF4b2p1dm5uYXhrZGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDAzNDUsImV4cCI6MjEwMDg3NjM0NX0.UCl_uAgM7uNZYrVOGkIT0Sx9z5hCOl-5jz7HrSfJFic';
+const SUPABASE_ANON_KEY = 'https://knamdxaxojuvnnaxkdgk.supabase.co';
 const sb = (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length>20)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
@@ -450,7 +459,7 @@ const LOCAL_CACHE_KEY = 'joandra-cache-v1';
 let currentUser = null;
 
 const CATEGORY_ICONS = {
-  'Salary':'💼','Bonus':'🎁','Petty Cash':'👛',
+  'Salary':'💼','Bonus':'🎁','Petty Cash':'👛','Lens':'📷','Trading':'💹',
   'Vacation':'🏖️','Food':'🍜','Education':'🎓','Health':'💊','Household':'🏠','Children':'🧸','Gift':'🎀','Apparel':'👗','Beauty':'💄','Other':'✨'
 };
 const CATEGORY_COLORS = ['#B8892B','#3E7C59','#BF4E30','#1B2A41','#8B6BB1','#4E8CA6','#C97B5E','#6E9E5A','#A65C8E','#5C7EA6','#B04E4E','#7A8C4E'];
@@ -458,7 +467,7 @@ const CATEGORY_COLORS = ['#B8892B','#3E7C59','#BF4E30','#1B2A41','#8B6BB1','#4E8
 let state = {
   transactions: [], // {id,type,name,amount(IDR int),currency,origAmount,date,category,account,note,installmentId,installmentIndex,installmentTotal,createdAt}
   categories: {
-    income: ['Salary','Bonus','Petty Cash'],
+    income: ['Salary','Bonus','Petty Cash','Lens','Trading'],
     expense: ['Vacation','Food','Education','Health','Household','Children','Gift','Apparel','Beauty']
   },
   accounts: [],
@@ -534,11 +543,17 @@ function getGreetingWord(){
   return t('greet_night');
 }
 
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function localDateStr(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function todayStr(){ return localDateStr(new Date()); }
 
 function mergeIntoState(parsed){
   state = Object.assign(state, parsed);
   state.settings = Object.assign({name:'', language:'en', theme:'light'}, parsed.settings||{});
+  // migration: make sure newly-added default categories exist for returning users too
+  ['Lens','Trading'].forEach(c=>{ if(!state.categories.income.includes(c)) state.categories.income.push(c); });
 }
 function readLocalCache(){
   try{
@@ -696,8 +711,8 @@ function bumpStreak(){
   const s = state.streak;
   if(s.lastDate === today){ /* already counted today */ return; }
   if(s.lastDate){
-    const y = new Date(new Date(today+'T00:00:00').getTime()-86400000).toISOString().slice(0,10);
-    if(s.lastDate === y){ s.count += 1; } else { s.count = 1; }
+    const yesterday = localDateStr(new Date(Date.now()-86400000));
+    if(s.lastDate === yesterday){ s.count += 1; } else { s.count = 1; }
   } else { s.count = 1; }
   s.lastDate = today;
   if(!s.log.includes(today)) s.log.push(today);
@@ -798,6 +813,7 @@ function renderHome(){
     <div class="cycle-label">Cycle ${cycleLabel(cycle)} · resets day 25</div>
 
     <div class="budget-card" id="homeBudgetCard" style="margin-top:16px;"></div>
+    <div id="homeOverBudgetAlert"></div>
 
     <div class="section-title">${t('recent_activity')} <span class="link" data-nav="charts">${t('see_reports')}</span></div>
     <div class="card" id="recentList"></div>
@@ -809,23 +825,11 @@ function renderHome(){
     <div class="card" id="homeEventList"></div>
   `;
   const monthly = state.budget.monthly||0;
-  const pct = monthly? Math.min(100, Math.round(expense/monthly*100)) : 0;
-  const left = monthly - expense;
   const budgetCard = el.querySelector('#homeBudgetCard');
-  budgetCard.innerHTML = monthly ? `
-    <div class="budget-title">${t('budget_used')}</div>
-    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:4px;">
-      <span style="font-family:var(--font-mono); font-size:22px; font-weight:700; color:${left<0?'var(--terracotta)':'var(--navy)'}">${pct}%</span>
-      <span style="font-size:11.5px; color:var(--slate); font-weight:600;">${fmtIDR(expense)} / ${fmtIDR(monthly)}</span>
-    </div>
-    <div class="budget-bar"><div class="budget-bar-fill ${left<0?'over':''}" style="width:${pct}%"></div></div>
-    <div style="font-size:11.5px; color:var(--slate); font-weight:600;">${left>=0? fmtIDR(left)+' '+t('left_this_month') : fmtIDR(Math.abs(left))+' '+t('over_budget')}</div>
-  ` : `
-    <div class="budget-title">${t('budget_used')}</div>
-    <div style="font-size:12.5px; color:var(--slate); margin-top:6px;">${t('no_budget_set')} <span class="link" id="setBudgetFromHome" style="cursor:pointer">${t('set_one_in_budget')}</span></div>
-  `;
-  const setBudgetLink = el.querySelector('#setBudgetFromHome');
+  budgetCard.innerHTML = budgetBarHTML(t('budget_used'), expense, monthly, t('left_this_month'));
+  const setBudgetLink = el.querySelector('.set-budget-link');
   if(setBudgetLink) setBudgetLink.addEventListener('click', ()=>switchTab('budget'));
+  el.querySelector('#homeOverBudgetAlert').innerHTML = overBudgetAlertHTML('Monthly budget', expense, monthly);
 
   const recentList = el.querySelector('#recentList');
   recentList.innerHTML = recent.length? recent.map(txRowHTML).join('') : `<div class="empty-state">${t('no_tx')}</div>`;
@@ -834,9 +838,11 @@ function renderHome(){
   const tEl = el.querySelector('#homeTodoList');
   tEl.innerHTML = todayTodos.length? todayTodos.map(todoRowHTML).join('') : `<div class="empty-state">${t('nothing_due')}</div>`;
   tEl.querySelectorAll('[data-todo]').forEach(r=>r.querySelector('.check').addEventListener('click', ()=>toggleTodo(r.dataset.todo)));
+  wireTodoRowDeletes(tEl);
 
   const eEl = el.querySelector('#homeEventList');
   eEl.innerHTML = upcomingEvents.length? upcomingEvents.map(eventRowHTML).join('') : `<div class="empty-state">${t('no_events')}</div>`;
+  eEl.querySelectorAll('[data-event]').forEach(r=>r.addEventListener('click', ()=>openEventModal(r.dataset.event)));
 
   el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.nav)));
   el.querySelectorAll('[data-open="todo"]').forEach(b=>b.addEventListener('click', ()=>openTodoModal()));
@@ -862,14 +868,32 @@ function todoRowHTML(t){
       <div class="todo-title ${t.done?'done':''}">${escapeHTML(t.name)}</div>
       <div class="todo-sub" style="${overdue?'color:var(--terracotta);font-weight:700;':''}">${overdue?'Overdue · ':'Due '}${fmtDate(t.deadline)}</div>
     </div>
+    <button class="row-del" data-del-todo="${t.id}" aria-label="Delete">✕</button>
   </div>`;
 }
+function deleteTodo(id){
+  state.todos = state.todos.filter(x=>x.id!==id);
+  saveState(); renderAll(); showToast('To-do deleted');
+}
+function wireTodoRowDeletes(container){
+  container.querySelectorAll('[data-del-todo]').forEach(b=>b.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    deleteTodo(b.dataset.delTodo);
+  }));
+}
+function fmtTime(t){
+  if(!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h>=12?'PM':'AM';
+  const h12 = ((h%12)||12);
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
 function eventRowHTML(e){
-  return `<div class="row">
+  return `<div class="row" data-event="${e.id}" style="cursor:pointer">
     <div class="row-icon" style="background:var(--gold-soft)">📅</div>
     <div class="row-main">
       <div class="row-title">${escapeHTML(e.name)}</div>
-      <div class="row-sub">${fmtDate(e.date)}${e.place?' · '+escapeHTML(e.place):''}</div>
+      <div class="row-sub">${fmtDate(e.date)}${e.time?' · '+fmtTime(e.time):''}${e.place?' · '+escapeHTML(e.place):''}</div>
     </div>
   </div>`;
 }
@@ -1169,16 +1193,43 @@ function buildDonutSVG(catList, totals, grand){
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--line)" stroke-width="${stroke}"></circle>
     </svg>`;
   }
-  let offset = 0;
+  let offset = 0, cumFrac = 0;
   const segs = catList.map((cat,i)=>{
     const val = totals[cat];
     const frac = grand? val/grand : 0;
     const dash = Math.max(frac*c - (catList.length>1?1.5:0), 0); // small gap between segments
-    const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}" stroke-width="${stroke}" stroke-linecap="butt" stroke-dasharray="${dash} ${Math.max(c-dash,0)}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHTML(cat)} — ${Math.round(frac*100)}%</title></circle>`;
+    const circle = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}" stroke-width="${stroke}" stroke-linecap="butt" stroke-dasharray="${dash} ${Math.max(c-dash,0)}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHTML(cat)} — ${Math.round(frac*100)}%</title></circle>`;
+    const pct = Math.round(frac*100);
+    const midFrac = cumFrac + frac/2;
+    const angle = midFrac*2*Math.PI;
+    const lx = cx + r*Math.sin(angle);
+    const ly = cy - r*Math.cos(angle);
+    const label = pct>=6 ? `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" style="font-family:'Manrope',sans-serif; font-weight:800; font-size:11.5px; fill:#fff; paint-order:stroke; stroke:rgba(0,0,0,.35); stroke-width:2.5px; stroke-linejoin:round;">${pct}%</text>` : '';
     offset += frac*c;
-    return seg;
+    cumFrac += frac;
+    return circle + label;
   }).join('');
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${segs}</svg>`;
+}
+let reportView = 'monthly';
+function buildDailyReportView(cycle, mode){
+  let html = '';
+  let d = new Date(cycle.start.getTime());
+  const dowFmt = new Intl.DateTimeFormat(state.settings.language==='id'?'id-ID':'en-GB', {weekday:'short', day:'numeric', month:'short'});
+  while(d <= cycle.end){
+    const ds = localDateStr(d);
+    const dayTx = state.transactions.filter(tx=>tx.date===ds && tx.type===mode).sort((a,b)=>b.createdAt-a.createdAt);
+    const dayTotal = dayTx.reduce((s,tx)=>s+tx.amount,0);
+    html += `
+      <div class="section-title" style="margin-top:16px; font-size:13.5px;">
+        <span>${dowFmt.format(d)}${ds===todayStr()?' · Today':''}</span>
+        <span style="font-family:var(--font-mono); font-weight:700; font-size:12.5px; color:${mode==='income'?'var(--green)':'var(--terracotta)'};">${dayTx.length? fmtIDR(dayTotal) : ''}</span>
+      </div>
+      <div class="card">${dayTx.length? dayTx.map(txRowHTML).join('') : `<div class="empty-state" style="padding:12px;">No transactions</div>`}</div>
+    `;
+    d.setDate(d.getDate()+1);
+  }
+  return html;
 }
 function renderCharts(){
   const el = document.getElementById('view-charts');
@@ -1216,34 +1267,50 @@ function renderCharts(){
       <div style="font-size:11.5px; color:var(--slate); margin-top:6px; font-weight:600;">${fmtIDR(cycleIncome)} ${t('income').toLowerCase()} &nbsp;−&nbsp; ${fmtIDR(cycleExpense)} ${t('expense').toLowerCase()}</div>
     </div>
 
-    <div class="chart-wrap" id="chartWrap">
-      <div class="chart-center"><div class="amt">${fmtIDR(grand)}</div><div class="lbl">${chartMode==='expense'?t('expense'):t('income')}</div></div>
+    <div class="tabbar" style="margin-top:14px;">
+      <button id="viewMonthly" class="${reportView==='monthly'?'on':''}">Monthly view</button>
+      <button id="viewDaily" class="${reportView==='daily'?'on':''}">Daily view</button>
     </div>
-    <div class="card" id="catBreakdown" style="margin-top:16px;"></div>
-    <button class="btn ghost" id="exportPdfBtn" style="margin-top:18px;">${t('export_pdf')}</button>
+
+    <div id="reportBody"></div>
   `;
 
-  document.getElementById('chartWrap').insertAdjacentHTML('afterbegin', buildDonutSVG(catList, totals, grand));
+  const bodyEl = document.getElementById('reportBody');
+  if(reportView==='monthly'){
+    bodyEl.innerHTML = `
+      <div class="chart-wrap" id="chartWrap">
+        <div class="chart-center"><div class="amt">${fmtIDR(grand)}</div><div class="lbl">${chartMode==='expense'?t('expense'):t('income')}</div></div>
+      </div>
+      <div class="card" id="catBreakdown" style="margin-top:16px;"></div>
+      <button class="btn ghost" id="exportPdfBtn" style="margin-top:18px;">${t('export_pdf')}</button>
+    `;
+    document.getElementById('chartWrap').insertAdjacentHTML('afterbegin', buildDonutSVG(catList, totals, grand));
 
-  const bEl = document.getElementById('catBreakdown');
-  bEl.innerHTML = catList.length? catList.map((c,i)=>{
-    const pct = grand? Math.round(totals[c]/grand*100) : 0;
-    return `<div class="cat-row" data-cat-view="${escapeHTML(c)}" style="cursor:pointer">
-      <div class="cat-dot" style="background:${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}"></div>
-      <div class="cat-row-main"><div class="cat-row-name">${CATEGORY_ICONS[c]||''} ${c}</div><div class="cat-row-pct">${pct}% of total</div></div>
-      <div class="cat-row-amt">${fmtIDR(totals[c])}</div>
-    </div>`;
-  }).join('') : `<div class="empty-state">${t('no_records').replace('{mode}', chartMode==='expense'?t('expense').toLowerCase():t('income').toLowerCase())}</div>`;
+    const bEl = document.getElementById('catBreakdown');
+    bEl.innerHTML = catList.length? catList.map((c,i)=>{
+      const pct = grand? Math.round(totals[c]/grand*100) : 0;
+      return `<div class="cat-row" data-cat-view="${escapeHTML(c)}" style="cursor:pointer">
+        <div class="cat-dot" style="background:${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}"></div>
+        <div class="cat-row-main"><div class="cat-row-name">${CATEGORY_ICONS[c]||''} ${c}</div><div class="cat-row-pct">${pct}% of total</div></div>
+        <div class="cat-row-amt">${fmtIDR(totals[c])}</div>
+      </div>`;
+    }).join('') : `<div class="empty-state">${t('no_records').replace('{mode}', chartMode==='expense'?t('expense').toLowerCase():t('income').toLowerCase())}</div>`;
 
-  bEl.querySelectorAll('[data-cat-view]').forEach(row=>row.addEventListener('click', ()=>{
-    openCategoryListModal(row.dataset.catView, chartMode, cycle);
-  }));
+    bEl.querySelectorAll('[data-cat-view]').forEach(row=>row.addEventListener('click', ()=>{
+      openCategoryListModal(row.dataset.catView, chartMode, cycle);
+    }));
+    document.getElementById('exportPdfBtn').addEventListener('click', ()=>exportReportPDF(cycle, chartMode, totals, grand));
+  } else {
+    bodyEl.innerHTML = buildDailyReportView(cycle, chartMode);
+    bodyEl.querySelectorAll('[data-tx]').forEach(r=>r.addEventListener('click', ()=>openTransactionModal(r.dataset.tx)));
+  }
 
+  document.getElementById('viewMonthly').addEventListener('click', ()=>{ reportView='monthly'; renderCharts(); });
+  document.getElementById('viewDaily').addEventListener('click', ()=>{ reportView='daily'; renderCharts(); });
   document.getElementById('modeExpense').addEventListener('click', ()=>{ chartMode='expense'; renderCharts(); });
   document.getElementById('modeIncome').addEventListener('click', ()=>{ chartMode='income'; renderCharts(); });
   document.getElementById('cyclePrev').addEventListener('click', ()=>{ chartCycleOffset -= 1; renderChartsWithOffset(); });
   document.getElementById('cycleNext').addEventListener('click', ()=>{ chartCycleOffset += 1; renderChartsWithOffset(); });
-  document.getElementById('exportPdfBtn').addEventListener('click', ()=>exportReportPDF(cycle, chartMode, totals, grand));
 }
 function renderChartsWithOffset(){ renderCharts(); }
 
@@ -1263,7 +1330,7 @@ let calMonth = new Date();
 let selectedTodoDate = todayStr();
 function dateStripRange(){
   const arr = [];
-  for(let i=-30;i<=45;i++) arr.push(new Date(Date.now()+i*86400000).toISOString().slice(0,10));
+  for(let i=-30;i<=45;i++) arr.push(localDateStr(new Date(Date.now()+i*86400000)));
   return arr;
 }
 function todosForDate(dateStr){
@@ -1315,13 +1382,19 @@ function renderTasks(){
     `;
     document.getElementById('addTodoBtn').addEventListener('click', ()=>openTodoModal());
     content.querySelectorAll('[data-todo]').forEach(r=>r.querySelector('.check').addEventListener('click', ()=>toggleTodo(r.dataset.todo)));
+    wireTodoRowDeletes(content);
     content.querySelectorAll('.date-chip').forEach(ch=>ch.addEventListener('click', ()=>{ selectedTodoDate = ch.dataset.date; renderTasks(); }));
     const strip = document.getElementById('dateStrip');
     const selChip = strip.querySelector('.date-chip.sel');
     if(selChip) selChip.scrollIntoView({inline:'center', block:'nearest'});
   } else {
+    const overdueTodos = state.todos.filter(x=>!x.done && x.deadline<todayStr()).sort((a,b)=>a.deadline.localeCompare(b.deadline));
     content.innerHTML = `
       <button class="btn" id="addEventBtn" style="margin-bottom:14px;">${t('add_event')}</button>
+      ${overdueTodos.length? `
+        <div class="section-title" style="margin-top:0;"><span style="color:var(--terracotta);">⚠ Overdue to-dos</span></div>
+        <div class="card" style="border-color:var(--terracotta-soft); margin-bottom:16px;">${overdueTodos.map(todoRowHTML).join('')}</div>
+      ` : ''}
       <div class="card" style="padding:14px;">
         <div class="cal-head">
           <button class="icon-btn" id="calPrev">‹</button>
@@ -1334,11 +1407,14 @@ function renderTasks(){
       <div class="card" id="eventListAll"></div>
     `;
     document.getElementById('addEventBtn').addEventListener('click', ()=>openEventModal());
+    wireTodoRowDeletes(content);
+    content.querySelectorAll('[data-todo]').forEach(r=>{ const chk=r.querySelector('.check'); if(chk) chk.addEventListener('click', ()=>toggleTodo(r.dataset.todo)); });
     document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()-1); renderTasks(); });
     document.getElementById('calNext').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()+1); renderTasks(); });
     renderCalendarGrid();
     const allEv = [...state.events].sort((a,b)=>a.date.localeCompare(b.date));
     document.getElementById('eventListAll').innerHTML = allEv.length? allEv.map(eventRowHTML).join('') : `<div class="empty-state">${t('no_events_yet')}</div>`;
+    document.getElementById('eventListAll').querySelectorAll('[data-event]').forEach(r=>r.addEventListener('click', ()=>openEventModal(r.dataset.event)));
   }
 }
 function renderCalendarGrid(){
@@ -1353,9 +1429,10 @@ function renderCalendarGrid(){
   for(let d=1; d<=daysInMonth; d++){
     const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds===today;
-    html += `<div class="cal-cell ${isToday?'today':''}">${d}${eventDates.has(ds)?'<div class="cal-dot"></div>':''}</div>`;
+    html += `<div class="cal-cell ${isToday?'today':''}" data-caldate="${ds}" style="cursor:pointer">${d}${eventDates.has(ds)?'<div class="cal-dot"></div>':''}</div>`;
   }
   grid.innerHTML = html;
+  grid.querySelectorAll('[data-caldate]').forEach(cell=>cell.addEventListener('click', ()=>openDayEventsModal(cell.dataset.caldate)));
 }
 function toggleTodo(id){
   const todo = state.todos.find(x=>x.id===id);
@@ -1381,26 +1458,92 @@ function openTodoModal(){
     saveState(); closeSheet(); renderAll(); showToast('To-do added');
   });
 }
-function openEventModal(){
+function openEventModal(id, prefillDate){
+  const ev = id ? state.events.find(x=>x.id===id) : null;
   const html = `
-    <div class="sheet-title">New event</div>
-    <div class="field"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sofia's birthday"></div>
-    <div class="field"><label>Date</label><input type="date" id="evDate" value="${todayStr()}"></div>
-    <div class="field"><label>Place</label><input type="text" id="evPlace" placeholder="e.g. Grandma's house"></div>
-    <button class="btn" id="saveEvBtn">Add event</button>
+    <div class="sheet-title">${ev? 'Edit event' : 'New event'}</div>
+    <div class="field"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sofia's birthday" value="${ev?escapeHTML(ev.name):''}"></div>
+    <div class="row-2">
+      <div class="field"><label>Date</label><input type="date" id="evDate" value="${ev?ev.date:(prefillDate||todayStr())}"></div>
+      <div class="field"><label>Time (optional)</label><input type="time" id="evTime" value="${ev&&ev.time?ev.time:''}"></div>
+    </div>
+    <div class="field"><label>Place</label><input type="text" id="evPlace" placeholder="e.g. Grandma's house" value="${ev?escapeHTML(ev.place||''):''}"></div>
+    <button class="btn" id="saveEvBtn">${ev?'Save changes':'Add event'}</button>
+    ${ev?`<button class="btn secondary" id="deleteEvBtn">Delete event</button>`:''}
   `;
   openSheet(html);
   document.getElementById('saveEvBtn').addEventListener('click', ()=>{
     const name = document.getElementById('evName').value.trim();
     const date = document.getElementById('evDate').value || todayStr();
+    const time = document.getElementById('evTime').value || '';
     const place = document.getElementById('evPlace').value.trim();
     if(!name){ showToast('⚠️ Enter an event name'); return; }
-    state.events.push({id:uid(), name, date, place});
-    saveState(); closeSheet(); renderAll(); showToast('Event added');
+    if(ev){
+      ev.name=name; ev.date=date; ev.time=time; ev.place=place;
+    } else {
+      state.events.push({id:uid(), name, date, time, place});
+    }
+    saveState(); closeSheet(); renderAll(); showToast(ev?'Event updated':'Event added');
   });
+  if(ev){
+    document.getElementById('deleteEvBtn').addEventListener('click', ()=>{
+      state.events = state.events.filter(x=>x.id!==ev.id);
+      saveState(); closeSheet(); renderAll(); showToast('Event deleted');
+    });
+  }
+}
+function openDayEventsModal(dateStr){
+  const evs = state.events.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const label = new Date(dateStr+'T00:00:00').toLocaleDateString(state.settings.language==='id'?'id-ID':'en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const html = `
+    <div class="sheet-title">${label}</div>
+    <button class="btn" id="addEventForDayBtn" style="margin-bottom:14px;">${t('add_event')}</button>
+    <div class="card">${evs.length? evs.map(eventRowHTML).join('') : `<div class="empty-state">${t('no_events_yet')}</div>`}</div>
+  `;
+  openSheet(html);
+  document.getElementById('addEventForDayBtn').addEventListener('click', ()=>openEventModal(null, dateStr));
+  document.querySelectorAll('[data-event]').forEach(r=>r.addEventListener('click', ()=>openEventModal(r.dataset.event)));
 }
 
 /* ================= BUDGET TAB ================= */
+function budgetBarHTML(titleLabel, spent, budget, leftLabel){
+  if(!budget){
+    return `
+      <div class="budget-title">${titleLabel}</div>
+      <div style="font-size:12.5px; color:var(--slate); margin-top:6px;">${t('no_budget_set')} <span class="link set-budget-link" style="cursor:pointer">${t('set_one_in_budget')}</span></div>
+    `;
+  }
+  const pctRaw = spent/budget*100;
+  const pct = Math.min(100, Math.round(pctRaw));
+  const left = budget - spent;
+  const isOver = left<0;
+  const isWarning = !isOver && pctRaw>=80;
+  const hot = isOver || isWarning;
+  return `
+    <div class="budget-title">${titleLabel}</div>
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:4px;">
+      <span style="font-family:var(--font-mono); font-size:22px; font-weight:700; color:${hot?'var(--terracotta)':'var(--navy)'}">${Math.round(pctRaw)}%</span>
+      <span style="font-size:11.5px; color:var(--slate); font-weight:600;">${fmtIDR(spent)} / ${fmtIDR(budget)}</span>
+    </div>
+    <div class="budget-bar"><div class="budget-bar-fill ${hot?'over':''}" style="width:${pct}%"></div></div>
+    <div style="font-size:11.5px; font-weight:700; margin-top:2px; color:${hot?'var(--terracotta)':'var(--slate)'};">
+      ${isOver? '⚠ '+fmtIDR(Math.abs(left))+' '+t('over_budget') : (isWarning? '⚠ Nearing your budget limit — '+fmtIDR(left)+' '+leftLabel : fmtIDR(left)+' '+leftLabel)}
+    </div>
+  `;
+}
+function overBudgetAlertHTML(label, spent, budget){
+  if(!budget || spent<=budget) return '';
+  const overAmt = spent-budget;
+  const overPct = Math.round(overAmt/budget*100);
+  const barPct = Math.min(100, overPct);
+  return `
+    <div class="overbudget-alert">
+      <div class="obtitle">⚠ ${label} over budget</div>
+      <div class="obamt">+${overPct}% &nbsp;·&nbsp; ${fmtIDR(overAmt)}</div>
+      <div class="budget-bar" style="margin-top:10px;"><div class="budget-bar-fill over" style="width:${barPct}%"></div></div>
+    </div>
+  `;
+}
 function renderBudget(){
   const el = document.getElementById('view-budget');
   const cycle = getCycleFor(todayStr());
@@ -1417,19 +1560,11 @@ function renderBudget(){
   el.innerHTML = `
     <div class="section-title">${t('budget_planner')} <span class="link" id="editBudgetLink">${t('edit')}</span></div>
 
-    <div class="budget-card">
-      <div class="budget-title">${t('monthly_budget')} (${cycleLabel(cycle)})</div>
-      <div class="budget-left">${monthly? fmtIDR(monthLeft) : t('not_set')}</div>
-      ${monthly?`<div class="budget-bar"><div class="budget-bar-fill ${monthLeft<0?'over':''}" style="width:${monthPct}%"></div></div>
-      <div class="budget-nums"><span>${fmtIDR(monthExpense)}</span><span>${fmtIDR(monthly)}</span></div>`:''}
-    </div>
+    <div id="monthOverBudgetAlert"></div>
+    <div class="budget-card" id="monthBudgetCard"></div>
 
-    <div class="budget-card">
-      <div class="budget-title">${t('today_budget')}</div>
-      <div class="budget-left">${daily? fmtIDR(dayLeft) : t('not_set')}</div>
-      ${daily?`<div class="budget-bar"><div class="budget-bar-fill ${dayLeft<0?'over':''}" style="width:${dayPct}%"></div></div>
-      <div class="budget-nums"><span>${fmtIDR(todayExpense)}</span><span>${fmtIDR(daily)}</span></div>`:''}
-    </div>
+    <div id="dayOverBudgetAlert"></div>
+    <div class="budget-card" id="dayBudgetCard"></div>
 
     <div class="section-title">${t('streak')}</div>
     <div class="streak-hero">
@@ -1441,11 +1576,16 @@ function renderBudget(){
       </div>
     </div>
   `;
+  document.getElementById('monthOverBudgetAlert').innerHTML = overBudgetAlertHTML('Monthly budget', monthExpense, monthly);
+  document.getElementById('monthBudgetCard').innerHTML = budgetBarHTML(`${t('monthly_budget')} (${cycleLabel(cycle)})`, monthExpense, monthly, 'left this month');
+  document.getElementById('dayOverBudgetAlert').innerHTML = overBudgetAlertHTML("Today's budget", todayExpense, daily);
+  document.getElementById('dayBudgetCard').innerHTML = budgetBarHTML(t('today_budget'), todayExpense, daily, 'left today');
+  document.querySelectorAll('.set-budget-link').forEach(l=>l.addEventListener('click', openBudgetModal));
   document.getElementById('editBudgetLink').addEventListener('click', openBudgetModal);
 }
 function last7Days(){
   const arr = [];
-  for(let i=6;i>=0;i--){ arr.push(new Date(Date.now()-i*86400000).toISOString().slice(0,10)); }
+  for(let i=6;i>=0;i--){ arr.push(localDateStr(new Date(Date.now()-i*86400000))); }
   return arr;
 }
 function openBudgetModal(){
