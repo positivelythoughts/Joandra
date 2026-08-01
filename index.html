@@ -450,8 +450,8 @@ input,select,textarea{font-family:inherit; font-size:16px;}
    4. (Optional) Authentication → Providers → Email → turn OFF "Confirm email"
       so you can log in immediately without checking your inbox.
 */
-const SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuYW1keGF4b2p1dm5uYXhrZGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDAzNDUsImV4cCI6MjEwMDg3NjM0NX0.UCl_uAgM7uNZYrVOGkIT0Sx9z5hCOl-5jz7HrSfJFic';
-const SUPABASE_ANON_KEY = 'https://knamdxaxojuvnnaxkdgk.supabase.co';
+const SUPABASE_URL = 'https://knamdxaxojuvnnaxkdgk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuYW1keGF4b2p1dm5uYXhrZGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDAzNDUsImV4cCI6MjEwMDg3NjM0NX0.UCl_uAgM7uNZYrVOGkIT0Sx9z5hCOl-5jz7HrSfJFic';
 const sb = (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length>20)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
