@@ -250,10 +250,15 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .tabbar{display:flex; gap:8px; margin-bottom:14px;}
 .tabbar button{flex:1; padding:9px; border-radius:11px; border:1px solid var(--line); background:var(--paper); font-weight:700; font-size:12.5px; color:var(--slate);}
 .tabbar button.on{background:var(--navy); color:#fff; border-color:var(--navy);}
+.viewtoggle{display:inline-flex; gap:4px; padding:4px; background:var(--paper); border:1px solid var(--gold-soft); border-radius:999px; box-shadow:var(--shadow);}
+.viewtoggle button{padding:8px 15px; border-radius:999px; border:none; background:transparent; font-weight:700; font-size:12px; color:var(--slate);}
+.viewtoggle button.on{background:var(--gold); color:#fff;}
 
 /* Chart wheel */
 .chart-wrap{position:relative; width:200px; height:200px; margin:6px auto 4px;}
 .chart-wrap svg{display:block; margin:0 auto;}
+.donut-seg:hover .donut-pct{opacity:1 !important;}
+.donut-seg.active .donut-pct{opacity:1 !important;}
 .chart-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
 .chart-center .amt{font-family:var(--font-mono); font-weight:700; font-size:14px; color:var(--navy);}
 .chart-center .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--slate); margin-top:2px;}
@@ -290,6 +295,18 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .cal-cell.blank{visibility:hidden;}
 .cal-dot{width:4px; height:4px; border-radius:99px; background:var(--gold); position:absolute; bottom:4px;}
 .cal-cell.today .cal-dot{background:var(--gold-soft);}
+.cal-dots{position:absolute; bottom:4px; left:50%; transform:translateX(-50%); display:flex; gap:2px;}
+.cal-dots span{width:4px; height:4px; border-radius:99px; display:block;}
+
+.tl-wrap{border-top:1px solid var(--line);}
+.tl-hour-row{border-bottom:1px solid var(--line); position:relative; box-sizing:border-box;}
+.tl-hour-label{position:absolute; top:-7px; left:0; width:48px; font-size:10px; color:var(--slate); font-weight:700; background:var(--cream); padding-right:6px;}
+.tl-event{
+  position:absolute; border-radius:9px; padding:5px 8px; color:#fff; overflow:hidden;
+  box-shadow:0 2px 6px rgba(0,0,0,.18); cursor:pointer; box-sizing:border-box;
+}
+.tl-event-name{font-weight:800; font-size:11px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tl-event-time{font-size:9.5px; opacity:.9; margin-top:1px;}
 
 .date-strip-wrap{margin:2px -2px 0;}
 .date-strip{
@@ -460,7 +477,7 @@ let currentUser = null;
 
 const CATEGORY_ICONS = {
   'Salary':'💼','Bonus':'🎁','Petty Cash':'👛','Lens':'📷','Trading':'💹',
-  'Vacation':'🏖️','Food':'🍜','Education':'🎓','Health':'💊','Household':'🏠','Children':'🧸','Gift':'🎀','Apparel':'👗','Beauty':'💄','Other':'✨'
+  'Vacation':'🏖️','Food':'🍜','Education':'🎓','Health':'💊','Household':'🏠','Children':'🧸','Gift':'🎀','Apparel':'👗','Beauty':'💄','Transportation':'🚗','Entertainment':'🎬','Other':'✨'
 };
 const CATEGORY_COLORS = ['#B8892B','#3E7C59','#BF4E30','#1B2A41','#8B6BB1','#4E8CA6','#C97B5E','#6E9E5A','#A65C8E','#5C7EA6','#B04E4E','#7A8C4E'];
 
@@ -468,7 +485,7 @@ let state = {
   transactions: [], // {id,type,name,amount(IDR int),currency,origAmount,date,category,account,note,installmentId,installmentIndex,installmentTotal,createdAt}
   categories: {
     income: ['Salary','Bonus','Petty Cash','Lens','Trading'],
-    expense: ['Vacation','Food','Education','Health','Household','Children','Gift','Apparel','Beauty']
+    expense: ['Vacation','Food','Education','Health','Household','Children','Gift','Apparel','Beauty','Transportation','Entertainment']
   },
   accounts: [],
   todos: [], // {id,name,deadline,done,createdAt}
@@ -554,6 +571,7 @@ function mergeIntoState(parsed){
   state.settings = Object.assign({name:'', language:'en', theme:'light'}, parsed.settings||{});
   // migration: make sure newly-added default categories exist for returning users too
   ['Lens','Trading'].forEach(c=>{ if(!state.categories.income.includes(c)) state.categories.income.push(c); });
+  ['Transportation','Entertainment'].forEach(c=>{ if(!state.categories.expense.includes(c)) state.categories.expense.push(c); });
 }
 function readLocalCache(){
   try{
@@ -888,12 +906,18 @@ function fmtTime(t){
   const h12 = ((h%12)||12);
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
+const EVENT_CATEGORIES = {
+  Work:'💼', Health:'🩺', Chores:'🧹', Hobbies:'🎨', Finance:'💰', Social:'🎉'
+};
+const DEFAULT_EVENT_COLOR = '#B8892B';
 function eventRowHTML(e){
+  const timeRange = e.startTime ? (fmtTime(e.startTime) + (e.endTime? ' – '+fmtTime(e.endTime) : '')) : '';
+  const catIcon = e.category ? (EVENT_CATEGORIES[e.category]||'') : '';
   return `<div class="row" data-event="${e.id}" style="cursor:pointer">
-    <div class="row-icon" style="background:var(--gold-soft)">📅</div>
+    <div class="row-icon" style="background:${e.color||DEFAULT_EVENT_COLOR}; color:#fff;">${catIcon||'📅'}</div>
     <div class="row-main">
       <div class="row-title">${escapeHTML(e.name)}</div>
-      <div class="row-sub">${fmtDate(e.date)}${e.time?' · '+fmtTime(e.time):''}${e.place?' · '+escapeHTML(e.place):''}</div>
+      <div class="row-sub">${timeRange?timeRange+' · ':''}${fmtDate(e.date)}${e.category?' · '+e.category:''}${e.place?' · '+escapeHTML(e.place):''}</div>
     </div>
   </div>`;
 }
@@ -1204,10 +1228,10 @@ function buildDonutSVG(catList, totals, grand){
     const angle = midFrac*2*Math.PI;
     const lx = cx + r*Math.sin(angle);
     const ly = cy - r*Math.cos(angle);
-    const label = pct>=6 ? `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" style="font-family:'Manrope',sans-serif; font-weight:800; font-size:11.5px; fill:#fff; paint-order:stroke; stroke:rgba(0,0,0,.35); stroke-width:2.5px; stroke-linejoin:round;">${pct}%</text>` : '';
+    const label = `<text class="donut-pct" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" style="font-family:'Manrope',sans-serif; font-weight:800; font-size:11.5px; fill:#fff; paint-order:stroke; stroke:rgba(0,0,0,.35); stroke-width:2.5px; stroke-linejoin:round; opacity:0; pointer-events:none; transition:opacity .12s;">${pct}%</text>`;
     offset += frac*c;
     cumFrac += frac;
-    return circle + label;
+    return `<g class="donut-seg" data-cat="${escapeHTML(cat)}" style="cursor:pointer;">${circle}${label}</g>`;
   }).join('');
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${segs}</svg>`;
 }
@@ -1267,9 +1291,11 @@ function renderCharts(){
       <div style="font-size:11.5px; color:var(--slate); margin-top:6px; font-weight:600;">${fmtIDR(cycleIncome)} ${t('income').toLowerCase()} &nbsp;−&nbsp; ${fmtIDR(cycleExpense)} ${t('expense').toLowerCase()}</div>
     </div>
 
-    <div class="tabbar" style="margin-top:14px;">
-      <button id="viewMonthly" class="${reportView==='monthly'?'on':''}">Monthly view</button>
-      <button id="viewDaily" class="${reportView==='daily'?'on':''}">Daily view</button>
+    <div style="display:flex; justify-content:center; margin-top:16px;">
+      <div class="viewtoggle">
+        <button id="viewMonthly" class="${reportView==='monthly'?'on':''}">📊 By Category</button>
+        <button id="viewDaily" class="${reportView==='daily'?'on':''}">📅 By Day</button>
+      </div>
     </div>
 
     <div id="reportBody"></div>
@@ -1284,7 +1310,14 @@ function renderCharts(){
       <div class="card" id="catBreakdown" style="margin-top:16px;"></div>
       <button class="btn ghost" id="exportPdfBtn" style="margin-top:18px;">${t('export_pdf')}</button>
     `;
-    document.getElementById('chartWrap').insertAdjacentHTML('afterbegin', buildDonutSVG(catList, totals, grand));
+    const chartWrapEl = document.getElementById('chartWrap');
+    chartWrapEl.insertAdjacentHTML('afterbegin', buildDonutSVG(catList, totals, grand));
+    chartWrapEl.querySelectorAll('.donut-seg').forEach(g=>g.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const isActive = g.classList.contains('active');
+      chartWrapEl.querySelectorAll('.donut-seg').forEach(x=>x.classList.remove('active'));
+      if(!isActive) g.classList.add('active');
+    }));
 
     const bEl = document.getElementById('catBreakdown');
     bEl.innerHTML = catList.length? catList.map((c,i)=>{
@@ -1363,9 +1396,14 @@ function renderTasks(){
     const isFuture = selectedTodoDate > today;
     const dateHeading = selectedTodoDate===today ? 'Today' : new Date(selectedTodoDate+'T00:00:00').toLocaleDateString(state.settings.language==='id'?'id-ID':'en-GB',{weekday:'long', day:'numeric', month:'long'});
     const contextLine = isPast ? 'Completed on this day' : (isFuture ? 'Due on this day' : 'Due today');
+    const overdueTodos = state.todos.filter(x=>!x.done && x.deadline<today).sort((a,b)=>a.deadline.localeCompare(b.deadline));
 
     content.innerHTML = `
       <button class="btn" id="addTodoBtn" style="margin-bottom:14px;">${t('add_todo')}</button>
+      ${overdueTodos.length? `
+        <div class="section-title" style="margin-top:0;"><span style="color:var(--terracotta);">⚠ Overdue to-dos</span></div>
+        <div class="card" style="border-color:var(--terracotta-soft); margin-bottom:16px;">${overdueTodos.map(todoRowHTML).join('')}</div>
+      ` : ''}
       <div class="date-strip-wrap">
         <div class="date-strip" id="dateStrip">
           ${dates.map(d=>{
@@ -1388,13 +1426,9 @@ function renderTasks(){
     const selChip = strip.querySelector('.date-chip.sel');
     if(selChip) selChip.scrollIntoView({inline:'center', block:'nearest'});
   } else {
-    const overdueTodos = state.todos.filter(x=>!x.done && x.deadline<todayStr()).sort((a,b)=>a.deadline.localeCompare(b.deadline));
+    const todayEvents = state.events.filter(e=>e.date===todayStr()).sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
     content.innerHTML = `
       <button class="btn" id="addEventBtn" style="margin-bottom:14px;">${t('add_event')}</button>
-      ${overdueTodos.length? `
-        <div class="section-title" style="margin-top:0;"><span style="color:var(--terracotta);">⚠ Overdue to-dos</span></div>
-        <div class="card" style="border-color:var(--terracotta-soft); margin-bottom:16px;">${overdueTodos.map(todoRowHTML).join('')}</div>
-      ` : ''}
       <div class="card" style="padding:14px;">
         <div class="cal-head">
           <button class="icon-btn" id="calPrev">‹</button>
@@ -1403,17 +1437,13 @@ function renderTasks(){
         </div>
         <div class="cal-grid" id="calGrid"></div>
       </div>
-      <div class="section-title">${t('all_events')}</div>
-      <div class="card" id="eventListAll"></div>
+      <div class="section-title">Categories</div>
+      <div class="card" id="eventListAll">${todayEvents.length? todayEvents.map(eventRowHTML).join('') : `<div class="empty-state">No event for Today</div>`}</div>
     `;
     document.getElementById('addEventBtn').addEventListener('click', ()=>openEventModal());
-    wireTodoRowDeletes(content);
-    content.querySelectorAll('[data-todo]').forEach(r=>{ const chk=r.querySelector('.check'); if(chk) chk.addEventListener('click', ()=>toggleTodo(r.dataset.todo)); });
     document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()-1); renderTasks(); });
     document.getElementById('calNext').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()+1); renderTasks(); });
     renderCalendarGrid();
-    const allEv = [...state.events].sort((a,b)=>a.date.localeCompare(b.date));
-    document.getElementById('eventListAll').innerHTML = allEv.length? allEv.map(eventRowHTML).join('') : `<div class="empty-state">${t('no_events_yet')}</div>`;
     document.getElementById('eventListAll').querySelectorAll('[data-event]').forEach(r=>r.addEventListener('click', ()=>openEventModal(r.dataset.event)));
   }
 }
@@ -1423,22 +1453,31 @@ function renderCalendarGrid(){
   const firstDay = new Date(y,m,1).getDay();
   const daysInMonth = new Date(y,m+1,0).getDate();
   const today = todayStr();
-  const eventDates = new Set(state.events.map(e=>e.date));
+  const eventsByDate = {};
+  state.events.forEach(e=>{ (eventsByDate[e.date] = eventsByDate[e.date]||[]).push(e); });
   let html = ['S','M','T','W','T','F','S'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
   for(let i=0;i<firstDay;i++) html += `<div class="cal-cell blank"></div>`;
   for(let d=1; d<=daysInMonth; d++){
     const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds===today;
-    html += `<div class="cal-cell ${isToday?'today':''}" data-caldate="${ds}" style="cursor:pointer">${d}${eventDates.has(ds)?'<div class="cal-dot"></div>':''}</div>`;
+    const dayEvents = eventsByDate[ds]||[];
+    const dots = dayEvents.slice(0,3).map(e=>`<span class="cal-dot2" style="background:${e.color||DEFAULT_EVENT_COLOR}"></span>`).join('');
+    html += `<div class="cal-cell ${isToday?'today':''}" data-caldate="${ds}" style="cursor:pointer">${d}${dots?`<div class="cal-dots">${dots}</div>`:''}</div>`;
   }
   grid.innerHTML = html;
   grid.querySelectorAll('[data-caldate]').forEach(cell=>cell.addEventListener('click', ()=>openDayEventsModal(cell.dataset.caldate)));
+}
+function triggerHaptic(pattern){
+  if('vibrate' in navigator){
+    try{ navigator.vibrate(pattern); }catch(e){ /* not supported on this platform, ignore */ }
+  }
 }
 function toggleTodo(id){
   const todo = state.todos.find(x=>x.id===id);
   if(todo){
     todo.done = !todo.done;
     todo.completedDate = todo.done ? todayStr() : null;
+    if(todo.done) triggerHaptic(15);
     saveState(); renderAll();
   }
 }
@@ -1463,25 +1502,46 @@ function openEventModal(id, prefillDate){
   const html = `
     <div class="sheet-title">${ev? 'Edit event' : 'New event'}</div>
     <div class="field"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sofia's birthday" value="${ev?escapeHTML(ev.name):''}"></div>
-    <div class="row-2">
-      <div class="field"><label>Date</label><input type="date" id="evDate" value="${ev?ev.date:(prefillDate||todayStr())}"></div>
-      <div class="field"><label>Time (optional)</label><input type="time" id="evTime" value="${ev&&ev.time?ev.time:''}"></div>
+    <div class="field"><label>Date</label><input type="date" id="evDate" value="${ev?ev.date:(prefillDate||todayStr())}"></div>
+    <div class="field">
+      <label>Time</label>
+      <div class="row-2">
+        <div><div style="font-size:11px; color:var(--slate); margin-bottom:4px;">From</div><input type="time" id="evStartTime" value="${ev&&ev.startTime?ev.startTime:''}"></div>
+        <div><div style="font-size:11px; color:var(--slate); margin-bottom:4px;">Until</div><input type="time" id="evEndTime" value="${ev&&ev.endTime?ev.endTime:''}"></div>
+      </div>
+    </div>
+    <div class="field"><label>Category</label>
+      <div class="chip-row" id="evCatChips">
+        ${Object.keys(EVENT_CATEGORIES).map(c=>`<button type="button" class="chip ${ev&&ev.category===c?'on':''}" data-evcat="${c}">${EVENT_CATEGORIES[c]} ${c}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <input type="color" id="evColor" value="${ev&&ev.color?ev.color:DEFAULT_EVENT_COLOR}" style="width:100%; height:44px; border-radius:11px; border:1px solid var(--line); padding:4px; background:var(--paper);">
     </div>
     <div class="field"><label>Place</label><input type="text" id="evPlace" placeholder="e.g. Grandma's house" value="${ev?escapeHTML(ev.place||''):''}"></div>
     <button class="btn" id="saveEvBtn">${ev?'Save changes':'Add event'}</button>
     ${ev?`<button class="btn secondary" id="deleteEvBtn">Delete event</button>`:''}
   `;
   openSheet(html);
+  let selectedCat = ev ? ev.category : null;
+  document.querySelectorAll('#evCatChips [data-evcat]').forEach(b=>b.addEventListener('click', ()=>{
+    const isOn = b.classList.contains('on');
+    document.querySelectorAll('#evCatChips [data-evcat]').forEach(x=>x.classList.remove('on'));
+    if(!isOn){ b.classList.add('on'); selectedCat = b.dataset.evcat; } else { selectedCat = null; }
+  }));
   document.getElementById('saveEvBtn').addEventListener('click', ()=>{
     const name = document.getElementById('evName').value.trim();
     const date = document.getElementById('evDate').value || todayStr();
-    const time = document.getElementById('evTime').value || '';
+    const startTime = document.getElementById('evStartTime').value || '';
+    const endTime = document.getElementById('evEndTime').value || '';
+    const color = document.getElementById('evColor').value || DEFAULT_EVENT_COLOR;
     const place = document.getElementById('evPlace').value.trim();
     if(!name){ showToast('⚠️ Enter an event name'); return; }
     if(ev){
-      ev.name=name; ev.date=date; ev.time=time; ev.place=place;
+      ev.name=name; ev.date=date; ev.startTime=startTime; ev.endTime=endTime; ev.color=color; ev.category=selectedCat; ev.place=place;
     } else {
-      state.events.push({id:uid(), name, date, time, place});
+      state.events.push({id:uid(), name, date, startTime, endTime, color, category:selectedCat, place});
     }
     saveState(); closeSheet(); renderAll(); showToast(ev?'Event updated':'Event added');
   });
@@ -1492,17 +1552,81 @@ function openEventModal(id, prefillDate){
     });
   }
 }
+function timeToMinutes(t){
+  if(!t) return null;
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
+}
+function layoutDayEvents(evs){
+  const timed = evs.filter(e=>e.startTime).map(e=>{
+    const start = timeToMinutes(e.startTime);
+    let end = e.endTime ? timeToMinutes(e.endTime) : start+30;
+    if(end<=start) end = start+30;
+    return Object.assign({}, e, {start, end, duration:end-start});
+  }).sort((a,b)=> a.start-b.start || b.duration-a.duration);
+
+  const clusters = [];
+  let current = [], clusterEnd = -1;
+  timed.forEach(ev=>{
+    if(current.length && ev.start < clusterEnd){
+      current.push(ev); clusterEnd = Math.max(clusterEnd, ev.end);
+    } else {
+      if(current.length) clusters.push(current);
+      current = [ev]; clusterEnd = ev.end;
+    }
+  });
+  if(current.length) clusters.push(current);
+
+  const positioned = [];
+  clusters.forEach(cluster=>{
+    const sorted = [...cluster].sort((a,b)=>b.duration-a.duration); // longest first = behind
+    sorted.forEach((ev,idx)=> positioned.push(Object.assign({}, ev, {layerIndex:idx})));
+  });
+  return { positioned, untimed: evs.filter(e=>!e.startTime) };
+}
+function buildDayTimelineHTML(dateStr){
+  const ROWH = 48;
+  const evs = state.events.filter(e=>e.date===dateStr);
+  const { positioned, untimed } = layoutDayEvents(evs);
+  let hoursHTML = '';
+  for(let h=0; h<24; h++){
+    hoursHTML += `<div class="tl-hour-row" style="height:${ROWH}px;"><div class="tl-hour-label">${String(h).padStart(2,'0')}:00</div></div>`;
+  }
+  const evHTML = positioned.map(ev=>{
+    const top = (ev.start/60)*ROWH;
+    const height = Math.max((ev.duration/60)*ROWH - 2, 22);
+    const leftOffset = 56 + ev.layerIndex*14;
+    const catIcon = ev.category ? (EVENT_CATEGORIES[ev.category]||'') : '';
+    return `<div class="tl-event" data-event="${ev.id}" style="top:${top}px; height:${height}px; left:${leftOffset}px; right:6px; z-index:${ev.layerIndex+10}; background:${ev.color||DEFAULT_EVENT_COLOR};">
+      <div class="tl-event-name">${catIcon} ${escapeHTML(ev.name)}</div>
+      <div class="tl-event-time">${fmtTime(ev.startTime)}${ev.endTime?' – '+fmtTime(ev.endTime):''}</div>
+    </div>`;
+  }).join('');
+  return `
+    ${untimed.length? `<div class="card" style="margin-bottom:10px;">${untimed.map(eventRowHTML).join('')}</div>` : ''}
+    <div class="tl-wrap" id="tlWrap" style="position:relative; height:${24*ROWH}px;">
+      ${hoursHTML}
+      <div style="position:absolute; top:0; left:0; right:0; height:100%;">${evHTML}</div>
+    </div>
+  `;
+}
 function openDayEventsModal(dateStr){
-  const evs = state.events.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   const label = new Date(dateStr+'T00:00:00').toLocaleDateString(state.settings.language==='id'?'id-ID':'en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
   const html = `
     <div class="sheet-title">${label}</div>
     <button class="btn" id="addEventForDayBtn" style="margin-bottom:14px;">${t('add_event')}</button>
-    <div class="card">${evs.length? evs.map(eventRowHTML).join('') : `<div class="empty-state">${t('no_events_yet')}</div>`}</div>
+    ${buildDayTimelineHTML(dateStr)}
   `;
   openSheet(html);
   document.getElementById('addEventForDayBtn').addEventListener('click', ()=>openEventModal(null, dateStr));
   document.querySelectorAll('[data-event]').forEach(r=>r.addEventListener('click', ()=>openEventModal(r.dataset.event)));
+  // scroll to a sensible starting hour so the user doesn't land on midnight
+  const sheetEl = document.querySelector('.sheet');
+  const tlWrap = document.getElementById('tlWrap');
+  if(sheetEl && tlWrap){
+    const scrollHour = dateStr===todayStr() ? new Date().getHours() : 7;
+    sheetEl.scrollTop = Math.max(0, tlWrap.offsetTop + scrollHour*48 - 80);
+  }
 }
 
 /* ================= BUDGET TAB ================= */
@@ -1544,6 +1668,93 @@ function overBudgetAlertHTML(label, spent, budget){
     </div>
   `;
 }
+function getLastCycles(n){
+  const cycles = [];
+  let refDate = getCycleFor(todayStr()).start.toISOString().slice(0,10);
+  for(let i=n-1; i>=0; i--){
+    const shifted = addMonths(refDate, -i);
+    const mid = new Date(shifted+'T00:00:00'); mid.setDate(mid.getDate()+15);
+    const cyc = getCycleFor(mid.toISOString().slice(0,10));
+    const income = state.transactions.filter(t=>t.type==='income' && inCycle(t.date,cyc)).reduce((s,t)=>s+t.amount,0);
+    const expense = state.transactions.filter(t=>t.type==='expense' && inCycle(t.date,cyc)).reduce((s,t)=>s+t.amount,0);
+    cycles.push({ label: cyc.start.toLocaleDateString('en-GB',{month:'short'}), income, expense });
+  }
+  return cycles;
+}
+function smoothPath(pts){
+  if(pts.length<2) return '';
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0 = pts[i===0?i:i-1], p1 = pts[i], p2 = pts[i+1], p3 = pts[Math.min(i+2,pts.length-1)];
+    const cp1x = p1.x + (p2.x-p0.x)/6, cp1y = p1.y + (p2.y-p0.y)/6;
+    const cp2x = p2.x - (p3.x-p1.x)/6, cp2y = p2.y - (p3.y-p1.y)/6;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+function buildTrendChartSVG(cycles){
+  const W = 300, H = 150, padL = 8, padR = 54, padT = 16, padB = 22;
+  const maxVal = Math.max(1, ...cycles.map(c=>Math.max(c.income,c.expense)));
+  const n = cycles.length;
+  const xFor = i => padL + (i*(W-padL-padR))/(n-1||1);
+  const yFor = v => H-padB - (v/maxVal)*(H-padT-padB);
+
+  const incPts = cycles.map((c,i)=>({x:xFor(i), y:yFor(c.income)}));
+  const expPts = cycles.map((c,i)=>({x:xFor(i), y:yFor(c.expense)}));
+
+  const lastInc = cycles[n-1].income, prevInc = n>1? cycles[n-2].income : null;
+  const lastExp = cycles[n-1].expense, prevExp = n>1? cycles[n-2].expense : null;
+  const incPct = (prevInc!==null && prevInc>0) ? Math.round((lastInc-prevInc)/prevInc*100) : null;
+  const expPct = (prevExp!==null && prevExp>0) ? Math.round((lastExp-prevExp)/prevExp*100) : null;
+
+  const lastIncPt = incPts[n-1], lastExpPt = expPts[n-1];
+  const leaderInc = `<line x1="${lastIncPt.x.toFixed(1)}" y1="${lastIncPt.y.toFixed(1)}" x2="${(lastIncPt.x+22).toFixed(1)}" y2="${(lastIncPt.y-10).toFixed(1)}" stroke="var(--green)" stroke-width="1"/>`;
+  const leaderExp = `<line x1="${lastExpPt.x.toFixed(1)}" y1="${lastExpPt.y.toFixed(1)}" x2="${(lastExpPt.x+22).toFixed(1)}" y2="${(lastExpPt.y+10).toFixed(1)}" stroke="var(--terracotta)" stroke-width="1"/>`;
+
+  const labelInc = incPct===null? '' : `<text x="${(lastIncPt.x+25).toFixed(1)}" y="${(lastIncPt.y-10).toFixed(1)}" font-size="10.5" font-weight="800" fill="var(--green)" dominant-baseline="middle">${incPct>=0?'+':''}${incPct}%</text>`;
+  const labelExp = expPct===null? '' : `<text x="${(lastExpPt.x+25).toFixed(1)}" y="${(lastExpPt.y+10).toFixed(1)}" font-size="10.5" font-weight="800" fill="var(--terracotta)" dominant-baseline="middle">${expPct>=0?'+':''}${expPct}%</text>`;
+
+  const xLabels = cycles.map((c,i)=>`<text x="${xFor(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--slate)" text-anchor="middle">${c.label}</text>`).join('');
+  const dotsInc = incPts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="var(--green)"/>`).join('');
+  const dotsExp = expPts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="var(--terracotta)"/>`).join('');
+
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="overflow:visible;">
+    <path d="${smoothPath(expPts)}" fill="none" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round"/>
+    <path d="${smoothPath(incPts)}" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/>
+    ${dotsExp}${dotsInc}
+    ${leaderInc}${leaderExp}${labelInc}${labelExp}
+    ${xLabels}
+  </svg>`;
+}
+function computeFinancialScore(income, expense, budgetMonthly, streakCount){
+  const savingsRate = income>0 ? (income-expense)/income : (expense>0? -1 : 0);
+  const scoreSavings = Math.max(0, Math.min(50, (savingsRate/0.3)*50));
+  const scoreBudget = budgetMonthly ? (expense<=budgetMonthly ? 30 : Math.max(0, 30-((expense-budgetMonthly)/budgetMonthly)*30)) : 15;
+  const scoreStreak = Math.min(20, streakCount||0);
+  return { total: Math.max(0, Math.min(100, Math.round(scoreSavings+scoreBudget+scoreStreak))), savingsRatePct: Math.round(savingsRate*100) };
+}
+function scoreTier(score){
+  if(score>=80) return {label:'Excellent', color:'var(--green)'};
+  if(score>=60) return {label:'Good', color:'var(--green)'};
+  if(score>=40) return {label:'Fair', color:'var(--gold)'};
+  if(score>=20) return {label:'Needs attention', color:'var(--terracotta)'};
+  return {label:'Critical', color:'var(--terracotta)'};
+}
+function buildScoreGaugeSVG(score, color){
+  const size=104, stroke=12, r=(size-stroke)/2, c=2*Math.PI*r;
+  const dash = (Math.max(0,Math.min(100,score))/100)*c;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" style="stroke:var(--line)" stroke-width="${stroke}"></circle>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${dash} ${Math.max(c-dash,0)}" transform="rotate(-90 ${size/2} ${size/2})"></circle>
+  </svg>`;
+}
+function scoreFeedback(income, expense, savingsRatePct){
+  if(income<=0 && expense<=0) return 'No transactions logged yet this cycle.';
+  if(income<=0) return `${fmtIDR(expense)} spent with no income logged this cycle.`;
+  if(savingsRatePct>=20) return `Saved ${savingsRatePct}% of income (${fmtIDR(income-expense)}). Strong position.`;
+  if(savingsRatePct>=0) return `Saved ${savingsRatePct}% of income (${fmtIDR(income-expense)}). Room to grow.`;
+  return `Spent ${Math.abs(savingsRatePct)}% more than earned, ${fmtIDR(Math.abs(income-expense))} in the red.`;
+}
 function renderBudget(){
   const el = document.getElementById('view-budget');
   const cycle = getCycleFor(todayStr());
@@ -1566,6 +1777,18 @@ function renderBudget(){
     <div id="dayOverBudgetAlert"></div>
     <div class="budget-card" id="dayBudgetCard"></div>
 
+    <div class="section-title">Financial Score</div>
+    <div class="budget-card" id="scoreCard"></div>
+
+    <div class="section-title">Income vs Expense Trend</div>
+    <div class="budget-card">
+      <div style="display:flex; gap:14px; margin-bottom:6px;">
+        <div style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--green);"><span style="width:8px;height:8px;border-radius:99px;background:var(--green);display:inline-block;"></span>Income</div>
+        <div style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--terracotta);"><span style="width:8px;height:8px;border-radius:99px;background:var(--terracotta);display:inline-block;"></span>Expense</div>
+      </div>
+      <div id="trendChart"></div>
+    </div>
+
     <div class="section-title">${t('streak')}</div>
     <div class="streak-hero">
       <div class="flame-big">🔥</div>
@@ -1582,6 +1805,27 @@ function renderBudget(){
   document.getElementById('dayBudgetCard').innerHTML = budgetBarHTML(t('today_budget'), todayExpense, daily, 'left today');
   document.querySelectorAll('.set-budget-link').forEach(l=>l.addEventListener('click', openBudgetModal));
   document.getElementById('editBudgetLink').addEventListener('click', openBudgetModal);
+
+  const monthIncome = state.transactions.filter(t=>t.type==='income' && inCycle(t.date,cycle)).reduce((s,t)=>s+t.amount,0);
+  const { total: score, savingsRatePct } = computeFinancialScore(monthIncome, monthExpense, monthly, state.streak.count);
+  const tier = scoreTier(score);
+  document.getElementById('scoreCard').innerHTML = `
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="position:relative; width:104px; height:104px; flex:0 0 auto;">
+        ${buildScoreGaugeSVG(score, tier.color)}
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div style="font-family:var(--font-mono); font-size:22px; font-weight:800; color:${tier.color};">${score}</div>
+          <div style="font-size:9px; color:var(--slate); font-weight:700;">/ 100</div>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:800; font-size:14px; color:${tier.color};">${tier.label}</div>
+        <div style="font-family:var(--font-mono); font-size:13px; font-weight:700; color:var(--navy); margin-top:4px;">${savingsRatePct>=0?'+':''}${savingsRatePct}% saved</div>
+        <div style="font-size:11.5px; color:var(--slate); margin-top:6px; line-height:1.4;">${scoreFeedback(monthIncome, monthExpense, savingsRatePct)}</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('trendChart').innerHTML = buildTrendChartSVG(getLastCycles(6));
 }
 function last7Days(){
   const arr = [];
@@ -1858,4 +2102,3 @@ initAuth();
 </script>
 </body>
 </html>
-
