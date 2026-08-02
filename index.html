@@ -31,23 +31,6 @@
   --font-body:'Manrope', sans-serif;
   --font-mono:'JetBrains Mono', monospace;
 }
-[data-theme="dark"]{
-  --ink:#EAEAEF;
-  --ink-soft:#C7CCD6;
-  --slate:#8A93A6;
-  --cream:#12151C;
-  --paper:#1A1E27;
-  --line:#2A3040;
-  --gold:#D7AE5C;
-  --gold-soft:#3A311E;
-  --green:#5FBE87;
-  --green-soft:#173325;
-  --terracotta:#E17A5B;
-  --terracotta-soft:#3A2019;
-  --navy:#3C5378;
-}
-[data-theme="dark"] body{background:var(--cream);}
-
 /* ============ COLOR PALETTES ============ */
 [data-palette="pink"]{
   --navy:#B85C8A; --gold:#E8A0BB; --cream:#FDF3F6; --paper:#FFFFFF; --line:#F3D9E4;
@@ -57,10 +40,6 @@
   --navy:#6C63A6; --gold:#F6C85F; --cream:#FAF7FF; --paper:#FFFFFF; --line:#E5DFF5;
   --gold-soft:#FDF0D6; --green:#7FC29B; --green-soft:#E3F5EC; --terracotta:#F08C8C; --terracotta-soft:#FCE3E3;
 }
-[data-palette="corporate"]{
-  --navy:#1A2333; --gold:#C9A96A; --cream:#F4F1EA; --paper:#FFFFFF; --line:#DED7C4;
-  --gold-soft:#F0E6CC; --green:#3E7C59; --green-soft:#E1EEE5; --terracotta:#8B3A3A; --terracotta-soft:#EFDADA;
-}
 [data-palette="summer"]{
   --navy:#0E5E63; --gold:#F2994A; --cream:#EAFBFB; --paper:#FFFFFF; --line:#CDEDEE;
   --gold-soft:#FCE4CC; --green:#2FA88E; --green-soft:#DFF5EF; --terracotta:#E0623F; --terracotta-soft:#FBDCD2;
@@ -69,6 +48,12 @@
   --navy:#008471; --gold:#F4D242; --cream:#FFF8E9; --paper:#FFFFFF; --line:#D1CAEA;
   --gold-soft:#FFF1B8; --green:#898E46; --green-soft:#ECEDDD; --terracotta:#C45F3F; --terracotta-soft:#F7E1D8;
 }
+[data-palette="dark"]{
+  --ink:#EAEAEF; --ink-soft:#C7CCD6; --slate:#8A93A6; --cream:#12151C; --paper:#1A1E27; --line:#2A3040;
+  --gold:#D7AE5C; --gold-soft:#3A311E; --green:#5FBE87; --green-soft:#173325; --terracotta:#E17A5B; --terracotta-soft:#3A2019;
+  --navy:#5678A8;
+}
+[data-palette="dark"] body{background:var(--cream);}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -175,6 +160,8 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .event-card-main{flex:1; min-width:0;}
 .event-card-name{font-weight:800; font-size:16px; line-height:1.25; letter-spacing:-0.2px;}
 .event-card-meta{font-family:var(--font-mono); font-weight:700; font-size:12.5px; margin-top:4px; opacity:.94;}
+.event-card-meta div{margin-top:3px;}
+.event-card-meta div:first-child{margin-top:0;}
 .empty-state{padding:22px 14px; text-align:center; color:var(--slate); font-size:13px;}
 
 /* FAB */
@@ -530,10 +517,10 @@ const CATEGORY_COLORS = ['#B8892B','#3E7C59','#BF4E30','#1B2A41','#8B6BB1','#4E8
 const PALETTES = [
   { id:'basic', name:'Basic', preview:['#1B2A41','#B8892B','#3E7C59'] },
   { id:'pink', name:'All Pink', preview:['#B85C8A','#E8A0BB','#FDF3F6'] },
-  { id:'pastel', name:'Pastel', preview:['#6C63A6','#F6C85F','#7FC29B'] },
-  { id:'corporate', name:'Corporate', preview:['#1A2333','#C9A96A','#F4F1EA'] },
-  { id:'summer', name:'Summer', preview:['#0E5E63','#F2994A','#2FA88E'] },
+  { id:'pastel', name:'Violet', preview:['#6C63A6','#F6C85F','#7FC29B'] },
+  { id:'summer', name:'Teal', preview:['#0E5E63','#F2994A','#2FA88E'] },
   { id:'hipdut', name:'Hipdut', preview:['#008471','#F4D242','#C45F3F'] },
+  { id:'dark', name:'Dark', preview:['#12151C','#5678A8','#D7AE5C'] },
 ];
 
 let state = {
@@ -606,7 +593,6 @@ function t(key){
   return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.en[key] || key;
 }
 function applyTheme(){
-  document.documentElement.setAttribute('data-theme', (state.settings && state.settings.theme==='dark') ? 'dark' : 'light');
   document.documentElement.setAttribute('data-palette', (state.settings && state.settings.palette) || 'basic');
 }
 function getGreetingWord(){
@@ -628,6 +614,11 @@ function mergeIntoState(parsed){
   // migration: make sure newly-added default categories exist for returning users too
   ['Lens','Trading'].forEach(c=>{ if(!state.categories.income.includes(c)) state.categories.income.push(c); });
   ['Transportation','Entertainment'].forEach(c=>{ if(!state.categories.expense.includes(c)) state.categories.expense.push(c); });
+  // migration: users who had the old "Dark theme" toggle on now get the Dark palette instead
+  if(state.settings.theme==='dark' && (!state.settings.palette || state.settings.palette==='basic')){
+    state.settings.palette = 'dark';
+  }
+  if(state.settings.palette==='corporate') state.settings.palette = 'basic';
 }
 function readLocalCache(){
   try{
@@ -971,11 +962,16 @@ const DEFAULT_EVENT_COLOR = '#B8892B';
 function eventRowHTML(e){
   const timeRange = e.startTime ? (fmtTime(e.startTime) + (e.endTime? ' – '+fmtTime(e.endTime) : '')) : '';
   const icon = e.icon || '✨';
+  const metaLines = [
+    timeRange ? `<div>${timeRange}</div>` : '',
+    `<div>${fmtDate(e.date)}</div>`,
+    e.place ? `<div>📍 ${escapeHTML(e.place)}</div>` : ''
+  ].join('');
   return `<div class="event-card-row" data-event="${e.id}" style="background:${e.color||DEFAULT_EVENT_COLOR};">
     <div class="event-card-icon">${icon}</div>
     <div class="event-card-main">
       <div class="event-card-name">${escapeHTML(e.name)}</div>
-      <div class="event-card-meta">${timeRange?timeRange+' · ':''}${fmtDate(e.date)}${e.place?' · '+escapeHTML(e.place):''}</div>
+      <div class="event-card-meta">${metaLines}</div>
     </div>
   </div>`;
 }
@@ -2101,7 +2097,6 @@ function openSettingsDrawer(){
         <option value="id" ${state.settings.language==='id'?'selected':''}>Bahasa Indonesia</option>
       </select>
     </div>
-    <div class="toggle-row"><span>${t('dark_theme')}</span><button type="button" class="switch ${state.settings.theme==='dark'?'on':''}" id="setThemeToggle"></button></div>
     <div class="toggle-row"><span>🙈 Hide amounts</span><button type="button" class="switch ${state.settings.hideAmounts?'on':''}" id="setHideToggle"></button></div>
 
     <div class="field">
@@ -2145,12 +2140,6 @@ function openSettingsDrawer(){
   document.getElementById('logoutBtn').addEventListener('click', async ()=>{
     if(sb) await sb.auth.signOut();
     else location.reload();
-  });
-  document.getElementById('setThemeToggle').addEventListener('click', (e)=>{
-    const willBeDark = state.settings.theme!=='dark';
-    state.settings.theme = willBeDark ? 'dark' : 'light';
-    e.currentTarget.classList.toggle('on', willBeDark);
-    applyTheme(); saveState();
   });
   document.getElementById('setHideToggle').addEventListener('click', (e)=>{
     const willHide = !state.settings.hideAmounts;
