@@ -47,6 +47,28 @@
   --navy:#3C5378;
 }
 [data-theme="dark"] body{background:var(--cream);}
+
+/* ============ COLOR PALETTES ============ */
+[data-palette="pink"]{
+  --navy:#B85C8A; --gold:#E8A0BB; --cream:#FDF3F6; --paper:#FFFFFF; --line:#F3D9E4;
+  --gold-soft:#FBE4ED; --green:#6FA287; --green-soft:#E6F0EA; --terracotta:#D97490; --terracotta-soft:#FBE0E7;
+}
+[data-palette="pastel"]{
+  --navy:#6C63A6; --gold:#F6C85F; --cream:#FAF7FF; --paper:#FFFFFF; --line:#E5DFF5;
+  --gold-soft:#FDF0D6; --green:#7FC29B; --green-soft:#E3F5EC; --terracotta:#F08C8C; --terracotta-soft:#FCE3E3;
+}
+[data-palette="corporate"]{
+  --navy:#1A2333; --gold:#C9A96A; --cream:#F4F1EA; --paper:#FFFFFF; --line:#DED7C4;
+  --gold-soft:#F0E6CC; --green:#3E7C59; --green-soft:#E1EEE5; --terracotta:#8B3A3A; --terracotta-soft:#EFDADA;
+}
+[data-palette="summer"]{
+  --navy:#0E5E63; --gold:#F2994A; --cream:#EAFBFB; --paper:#FFFFFF; --line:#CDEDEE;
+  --gold-soft:#FCE4CC; --green:#2FA88E; --green-soft:#DFF5EF; --terracotta:#E0623F; --terracotta-soft:#FBDCD2;
+}
+[data-palette="hipdut"]{
+  --navy:#008471; --gold:#F4D242; --cream:#FFF8E9; --paper:#FFFFFF; --line:#D1CAEA;
+  --gold-soft:#FFF1B8; --green:#898E46; --green-soft:#ECEDDD; --terracotta:#C45F3F; --terracotta-soft:#F7E1D8;
+}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -144,6 +166,15 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .row-amount{font-family:var(--font-mono); font-weight:700; font-size:13.5px; white-space:nowrap;}
 .row-amount.pos{color:var(--green);}
 .row-amount.neg{color:var(--terracotta);}
+.event-list{display:flex; flex-direction:column; gap:8px;}
+.event-card-row{
+  display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px;
+  color:#fff; box-shadow:0 4px 14px -4px rgba(0,0,0,.28); cursor:pointer;
+}
+.event-card-icon{font-size:26px; flex:0 0 auto; width:38px; text-align:center;}
+.event-card-main{flex:1; min-width:0;}
+.event-card-name{font-weight:800; font-size:16px; line-height:1.25; letter-spacing:-0.2px;}
+.event-card-meta{font-family:var(--font-mono); font-weight:700; font-size:12.5px; margin-top:4px; opacity:.94;}
 .empty-state{padding:22px 14px; text-align:center; color:var(--slate); font-size:13px;}
 
 /* FAB */
@@ -232,6 +263,16 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .chip{padding:8px 13px; border-radius:999px; border:1px solid var(--line); background:var(--paper); font-size:12.5px; font-weight:700; color:var(--ink-soft);}
 .chip.on{background:var(--navy); color:#fff; border-color:var(--navy);}
 .chip.add{border-style:dashed; color:var(--gold);}
+.chip.icon-chip{font-size:17px; padding:7px 11px;}
+.palette-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:2px;}
+.palette-swatch{
+  border:1px solid var(--line); background:var(--paper); border-radius:12px; padding:10px 8px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.palette-swatch.on{border-color:var(--gold); border-width:2px;}
+.swatch-dots{display:flex; gap:3px;}
+.swatch-dots span{width:12px; height:12px; border-radius:50%; display:block; box-shadow:0 0 0 1px rgba(0,0,0,.08) inset;}
+.swatch-label{font-size:10.5px; font-weight:700; color:var(--ink-soft);}
 
 .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:10px 2px; margin-bottom:10px;}
 .toggle-row span{font-weight:700; font-size:13.5px;}
@@ -266,6 +307,12 @@ input,select,textarea{font-family:inherit; font-size:16px;}
 .cat-row{display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line);}
 .cat-row:last-child{border-bottom:none;}
 .cat-dot{width:11px; height:11px; border-radius:3px; flex:0 0 auto;}
+.rank-badge{
+  width:28px; height:28px; border-radius:50%; flex:0 0 auto;
+  background:linear-gradient(145deg, var(--gold), #9C7222); color:#fff;
+  font-weight:800; font-size:10.5px; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 10px -2px rgba(184,137,43,.55);
+}
 .cat-row-main{flex:1;}
 .cat-row-name{font-weight:700; font-size:13.5px;}
 .cat-row-pct{font-size:11px; color:var(--slate);}
@@ -480,6 +527,14 @@ const CATEGORY_ICONS = {
   'Vacation':'🏖️','Food':'🍜','Education':'🎓','Health':'💊','Household':'🏠','Children':'🧸','Gift':'🎀','Apparel':'👗','Beauty':'💄','Transportation':'🚗','Entertainment':'🎬','Other':'✨'
 };
 const CATEGORY_COLORS = ['#B8892B','#3E7C59','#BF4E30','#1B2A41','#8B6BB1','#4E8CA6','#C97B5E','#6E9E5A','#A65C8E','#5C7EA6','#B04E4E','#7A8C4E'];
+const PALETTES = [
+  { id:'basic', name:'Basic', preview:['#1B2A41','#B8892B','#3E7C59'] },
+  { id:'pink', name:'All Pink', preview:['#B85C8A','#E8A0BB','#FDF3F6'] },
+  { id:'pastel', name:'Pastel', preview:['#6C63A6','#F6C85F','#7FC29B'] },
+  { id:'corporate', name:'Corporate', preview:['#1A2333','#C9A96A','#F4F1EA'] },
+  { id:'summer', name:'Summer', preview:['#0E5E63','#F2994A','#2FA88E'] },
+  { id:'hipdut', name:'Hipdut', preview:['#008471','#F4D242','#C45F3F'] },
+];
 
 let state = {
   transactions: [], // {id,type,name,amount(IDR int),currency,origAmount,date,category,account,note,installmentId,installmentIndex,installmentTotal,createdAt}
@@ -495,7 +550,7 @@ let state = {
   streak: {count:0, lastDate:null, log:[]},
   rates: {}, // {USD:{rate,date}, ...}
   goldCache: null, // {pricePerGramIDR, date}
-  settings: {name:'', language:'en', theme:'light'},
+  settings: {name:'', language:'en', theme:'light', palette:'basic', hideAmounts:false},
 };
 let loaded = false;
 
@@ -552,6 +607,7 @@ function t(key){
 }
 function applyTheme(){
   document.documentElement.setAttribute('data-theme', (state.settings && state.settings.theme==='dark') ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-palette', (state.settings && state.settings.palette) || 'basic');
 }
 function getGreetingWord(){
   const h = new Date().getHours();
@@ -568,7 +624,7 @@ function todayStr(){ return localDateStr(new Date()); }
 
 function mergeIntoState(parsed){
   state = Object.assign(state, parsed);
-  state.settings = Object.assign({name:'', language:'en', theme:'light'}, parsed.settings||{});
+  state.settings = Object.assign({name:'', language:'en', theme:'light', palette:'basic', hideAmounts:false}, parsed.settings||{});
   // migration: make sure newly-added default categories exist for returning users too
   ['Lens','Trading'].forEach(c=>{ if(!state.categories.income.includes(c)) state.categories.income.push(c); });
   ['Transportation','Entertainment'].forEach(c=>{ if(!state.categories.expense.includes(c)) state.categories.expense.push(c); });
@@ -673,6 +729,7 @@ async function initAuth(){
 /* ================= HELPERS ================= */
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function fmtIDR(n){
+  if(state.settings && state.settings.hideAmounts) return 'Rp ••••••';
   n = Math.round(n||0);
   const neg = n<0; n = Math.abs(n);
   return (neg?'-':'')+'Rp '+n.toLocaleString('id-ID');
@@ -840,7 +897,7 @@ function renderHome(){
     <div class="card" id="homeTodoList"></div>
 
     <div class="section-title">${t('upcoming_events')} <span class="link" data-open="event">${t('add')}</span></div>
-    <div class="card" id="homeEventList"></div>
+    <div class="event-list" id="homeEventList"></div>
   `;
   const monthly = state.budget.monthly||0;
   const budgetCard = el.querySelector('#homeBudgetCard');
@@ -909,15 +966,16 @@ function fmtTime(t){
 const EVENT_CATEGORIES = {
   Work:'💼', Health:'🩺', Chores:'🧹', Hobbies:'🎨', Finance:'💰', Social:'🎉'
 };
+const EVENT_ICONS = ['🎂','🎓','💍','✈️','🎵','🍽️','🎮','📚','🩺','🚗','🎉','🏖️','👨‍👩‍👧‍👦','💼','🎨','🧘','⚽','🎬','🛍️','🐾'];
 const DEFAULT_EVENT_COLOR = '#B8892B';
 function eventRowHTML(e){
   const timeRange = e.startTime ? (fmtTime(e.startTime) + (e.endTime? ' – '+fmtTime(e.endTime) : '')) : '';
-  const catIcon = e.category ? (EVENT_CATEGORIES[e.category]||'') : '';
-  return `<div class="row" data-event="${e.id}" style="cursor:pointer">
-    <div class="row-icon" style="background:${e.color||DEFAULT_EVENT_COLOR}; color:#fff;">${catIcon||'📅'}</div>
-    <div class="row-main">
-      <div class="row-title">${escapeHTML(e.name)}</div>
-      <div class="row-sub">${timeRange?timeRange+' · ':''}${fmtDate(e.date)}${e.category?' · '+e.category:''}${e.place?' · '+escapeHTML(e.place):''}</div>
+  const icon = e.icon || '✨';
+  return `<div class="event-card-row" data-event="${e.id}" style="background:${e.color||DEFAULT_EVENT_COLOR};">
+    <div class="event-card-icon">${icon}</div>
+    <div class="event-card-main">
+      <div class="event-card-name">${escapeHTML(e.name)}</div>
+      <div class="event-card-meta">${timeRange?timeRange+' · ':''}${fmtDate(e.date)}${e.place?' · '+escapeHTML(e.place):''}</div>
     </div>
   </div>`;
 }
@@ -1322,7 +1380,9 @@ function renderCharts(){
     const bEl = document.getElementById('catBreakdown');
     bEl.innerHTML = catList.length? catList.map((c,i)=>{
       const pct = grand? Math.round(totals[c]/grand*100) : 0;
+      const rank = (chartMode==='expense' && i<3) ? `<div class="rank-badge">#${i+1}</div>` : '';
       return `<div class="cat-row" data-cat-view="${escapeHTML(c)}" style="cursor:pointer">
+        ${rank}
         <div class="cat-dot" style="background:${CATEGORY_COLORS[i%CATEGORY_COLORS.length]}"></div>
         <div class="cat-row-main"><div class="cat-row-name">${CATEGORY_ICONS[c]||''} ${c}</div><div class="cat-row-pct">${pct}% of total</div></div>
         <div class="cat-row-amt">${fmtIDR(totals[c])}</div>
@@ -1437,8 +1497,8 @@ function renderTasks(){
         </div>
         <div class="cal-grid" id="calGrid"></div>
       </div>
-      <div class="section-title">Categories</div>
-      <div class="card" id="eventListAll">${todayEvents.length? todayEvents.map(eventRowHTML).join('') : `<div class="empty-state">No event for Today</div>`}</div>
+      <div class="section-title">What is today agenda?</div>
+      <div class="event-list" id="eventListAll">${todayEvents.length? todayEvents.map(eventRowHTML).join('') : `<div class="empty-state">No event for Today</div>`}</div>
     `;
     document.getElementById('addEventBtn').addEventListener('click', ()=>openEventModal());
     document.getElementById('calPrev').addEventListener('click', ()=>{ calMonth.setMonth(calMonth.getMonth()-1); renderTasks(); });
@@ -1497,11 +1557,29 @@ function openTodoModal(){
     saveState(); closeSheet(); renderAll(); showToast('To-do added');
   });
 }
+function generateRecurringDates(startDate, freq, untilDate){
+  const dates = [];
+  let d = startDate;
+  let guard = 0;
+  while(d <= untilDate && guard < 366){
+    dates.push(d);
+    if(freq==='daily') d = (()=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+1); return localDateStr(dt); })();
+    else if(freq==='weekly') d = (()=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+7); return localDateStr(dt); })();
+    else d = addMonths(d,1);
+    guard++;
+  }
+  return dates;
+}
 function openEventModal(id, prefillDate){
   const ev = id ? state.events.find(x=>x.id===id) : null;
   const html = `
     <div class="sheet-title">${ev? 'Edit event' : 'New event'}</div>
     <div class="field"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sofia's birthday" value="${ev?escapeHTML(ev.name):''}"></div>
+    <div class="field"><label>Icon</label>
+      <div class="chip-row" id="evIconChips">
+        ${EVENT_ICONS.map(ic=>`<button type="button" class="chip icon-chip ${ev&&ev.icon===ic?'on':''}" data-evicon="${ic}">${ic}</button>`).join('')}
+      </div>
+    </div>
     <div class="field"><label>Date</label><input type="date" id="evDate" value="${ev?ev.date:(prefillDate||todayStr())}"></div>
     <div class="field">
       <label>Time</label>
@@ -1520,16 +1598,51 @@ function openEventModal(id, prefillDate){
       <input type="color" id="evColor" value="${ev&&ev.color?ev.color:DEFAULT_EVENT_COLOR}" style="width:100%; height:44px; border-radius:11px; border:1px solid var(--line); padding:4px; background:var(--paper);">
     </div>
     <div class="field"><label>Place</label><input type="text" id="evPlace" placeholder="e.g. Grandma's house" value="${ev?escapeHTML(ev.place||''):''}"></div>
+
+    ${!ev? `
+    <div class="toggle-row">
+      <span>Repeat this event</span>
+      <button type="button" class="switch" id="evRecurToggle"></button>
+    </div>
+    <div id="evRecurFields" class="hidden">
+      <div class="chip-row" id="evRecurFreq">
+        <button type="button" class="chip on" data-freq="daily">Every day</button>
+        <button type="button" class="chip" data-freq="weekly">Every week</button>
+        <button type="button" class="chip" data-freq="monthly">Every month</button>
+      </div>
+      <div class="field"><label>Stop repeating on</label><input type="date" id="evRecurUntil"></div>
+    </div>
+    ` : ''}
+
     <button class="btn" id="saveEvBtn">${ev?'Save changes':'Add event'}</button>
     ${ev?`<button class="btn secondary" id="deleteEvBtn">Delete event</button>`:''}
   `;
   openSheet(html);
   let selectedCat = ev ? ev.category : null;
+  let selectedIcon = ev ? ev.icon : null;
+  let recurOn = false, recurFreq = 'daily';
   document.querySelectorAll('#evCatChips [data-evcat]').forEach(b=>b.addEventListener('click', ()=>{
     const isOn = b.classList.contains('on');
     document.querySelectorAll('#evCatChips [data-evcat]').forEach(x=>x.classList.remove('on'));
     if(!isOn){ b.classList.add('on'); selectedCat = b.dataset.evcat; } else { selectedCat = null; }
   }));
+  document.querySelectorAll('#evIconChips [data-evicon]').forEach(b=>b.addEventListener('click', ()=>{
+    const isOn = b.classList.contains('on');
+    document.querySelectorAll('#evIconChips [data-evicon]').forEach(x=>x.classList.remove('on'));
+    if(!isOn){ b.classList.add('on'); selectedIcon = b.dataset.evicon; } else { selectedIcon = null; }
+  }));
+  const recurToggle = document.getElementById('evRecurToggle');
+  if(recurToggle){
+    recurToggle.addEventListener('click', (e)=>{
+      recurOn = !recurOn;
+      e.currentTarget.classList.toggle('on', recurOn);
+      document.getElementById('evRecurFields').classList.toggle('hidden', !recurOn);
+    });
+    document.querySelectorAll('#evRecurFreq [data-freq]').forEach(b=>b.addEventListener('click', ()=>{
+      document.querySelectorAll('#evRecurFreq [data-freq]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); recurFreq = b.dataset.freq;
+    }));
+  }
   document.getElementById('saveEvBtn').addEventListener('click', ()=>{
     const name = document.getElementById('evName').value.trim();
     const date = document.getElementById('evDate').value || todayStr();
@@ -1538,10 +1651,25 @@ function openEventModal(id, prefillDate){
     const color = document.getElementById('evColor').value || DEFAULT_EVENT_COLOR;
     const place = document.getElementById('evPlace').value.trim();
     if(!name){ showToast('⚠️ Enter an event name'); return; }
+
+    if(!ev && recurOn){
+      const untilInput = document.getElementById('evRecurUntil');
+      const until = untilInput ? untilInput.value : '';
+      if(!until || until<date){ showToast('⚠️ Choose a valid stop date'); return; }
+      const dates = generateRecurringDates(date, recurFreq, until);
+      const groupId = uid();
+      dates.forEach(d=>{
+        state.events.push({id:uid(), name, date:d, startTime, endTime, color, category:selectedCat, icon:selectedIcon, place, recurringId:groupId, recurringFreq:recurFreq});
+      });
+      saveState(); closeSheet(); renderAll();
+      showToast(`Repeating event added (${dates.length} occurrences)`);
+      return;
+    }
+
     if(ev){
-      ev.name=name; ev.date=date; ev.startTime=startTime; ev.endTime=endTime; ev.color=color; ev.category=selectedCat; ev.place=place;
+      ev.name=name; ev.date=date; ev.startTime=startTime; ev.endTime=endTime; ev.color=color; ev.category=selectedCat; ev.icon=selectedIcon; ev.place=place;
     } else {
-      state.events.push({id:uid(), name, date, startTime, endTime, color, category:selectedCat, place});
+      state.events.push({id:uid(), name, date, startTime, endTime, color, category:selectedCat, icon:selectedIcon, place});
     }
     saveState(); closeSheet(); renderAll(); showToast(ev?'Event updated':'Event added');
   });
@@ -1596,14 +1724,14 @@ function buildDayTimelineHTML(dateStr){
     const top = (ev.start/60)*ROWH;
     const height = Math.max((ev.duration/60)*ROWH - 2, 22);
     const leftOffset = 56 + ev.layerIndex*14;
-    const catIcon = ev.category ? (EVENT_CATEGORIES[ev.category]||'') : '';
+    const dispIcon = ev.icon || (ev.category ? (EVENT_CATEGORIES[ev.category]||'') : '');
     return `<div class="tl-event" data-event="${ev.id}" style="top:${top}px; height:${height}px; left:${leftOffset}px; right:6px; z-index:${ev.layerIndex+10}; background:${ev.color||DEFAULT_EVENT_COLOR};">
-      <div class="tl-event-name">${catIcon} ${escapeHTML(ev.name)}</div>
+      <div class="tl-event-name">${dispIcon} ${escapeHTML(ev.name)}</div>
       <div class="tl-event-time">${fmtTime(ev.startTime)}${ev.endTime?' – '+fmtTime(ev.endTime):''}</div>
     </div>`;
   }).join('');
   return `
-    ${untimed.length? `<div class="card" style="margin-bottom:10px;">${untimed.map(eventRowHTML).join('')}</div>` : ''}
+    ${untimed.length? `<div class="event-list" style="margin-bottom:10px;">${untimed.map(eventRowHTML).join('')}</div>` : ''}
     <div class="tl-wrap" id="tlWrap" style="position:relative; height:${24*ROWH}px;">
       ${hoursHTML}
       <div style="position:absolute; top:0; left:0; right:0; height:100%;">${evHTML}</div>
@@ -1974,6 +2102,20 @@ function openSettingsDrawer(){
       </select>
     </div>
     <div class="toggle-row"><span>${t('dark_theme')}</span><button type="button" class="switch ${state.settings.theme==='dark'?'on':''}" id="setThemeToggle"></button></div>
+    <div class="toggle-row"><span>🙈 Hide amounts</span><button type="button" class="switch ${state.settings.hideAmounts?'on':''}" id="setHideToggle"></button></div>
+
+    <div class="field">
+      <label>App color theme</label>
+      <div class="palette-grid" id="paletteGrid">
+        ${PALETTES.map(p=>`
+          <button type="button" class="palette-swatch ${state.settings.palette===p.id?'on':''}" data-palette="${p.id}">
+            <span class="swatch-dots">${p.preview.map(c=>`<span style="background:${c}"></span>`).join('')}</span>
+            <span class="swatch-label">${p.name}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
     <button class="btn" id="saveSettingsBtn" style="margin-bottom:22px;">${t('save')}</button>
 
     <div class="section-title" style="margin-top:6px;">${t('data_title')}</div>
@@ -1991,6 +2133,14 @@ function openSettingsDrawer(){
     <button class="btn secondary" id="logoutBtn" style="margin-top:12px;">Log out</button>
   `;
   openDrawer(html);
+  let selectedPalette = state.settings.palette || 'basic';
+  document.querySelectorAll('#paletteGrid [data-palette]').forEach(b=>b.addEventListener('click', ()=>{
+    document.querySelectorAll('#paletteGrid [data-palette]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    selectedPalette = b.dataset.palette;
+    state.settings.palette = selectedPalette;
+    applyTheme(); saveState();
+  }));
   document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
   document.getElementById('logoutBtn').addEventListener('click', async ()=>{
     if(sb) await sb.auth.signOut();
@@ -2001,6 +2151,12 @@ function openSettingsDrawer(){
     state.settings.theme = willBeDark ? 'dark' : 'light';
     e.currentTarget.classList.toggle('on', willBeDark);
     applyTheme(); saveState();
+  });
+  document.getElementById('setHideToggle').addEventListener('click', (e)=>{
+    const willHide = !state.settings.hideAmounts;
+    state.settings.hideAmounts = willHide;
+    e.currentTarget.classList.toggle('on', willHide);
+    saveState(); renderAll();
   });
   document.getElementById('saveSettingsBtn').addEventListener('click', ()=>{
     state.settings.name = document.getElementById('setName').value.trim();
